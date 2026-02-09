@@ -13,7 +13,7 @@ import { FaceDetection } from "@mediapipe/face_detection";
 import { Camera } from "@mediapipe/camera_utils";
 import "../App.css";
 
-const AdvanceFaceCapture = ({
+const FaceCapture = ({
     enableDownload = true,
     enableBase64Viewer = true,
     onCapture
@@ -34,7 +34,18 @@ const AdvanceFaceCapture = ({
     const [fullImage, setFullImage] = useState(null);
     const [cropImage, setCropImage] = useState(null);
     const [showBase64, setShowBase64] = useState(false);
+    const [isMobile, setIsMobile] = useState(false);
 
+    useEffect(() => {
+        const checkScreen = () => {
+            setIsMobile(window.innerWidth <= 768);
+        };
+
+        checkScreen();
+        window.addEventListener("resize", checkScreen);
+
+        return () => window.removeEventListener("resize", checkScreen);
+    }, []);
     /* ---------------- MODAL TOGGLE ---------------- */
     const toggle = () => {
         setModal(!modal);
@@ -156,12 +167,28 @@ const AdvanceFaceCapture = ({
             if (results.detections.length > 0) {
                 const box = results.detections[0].boundingBox;
 
-                const x =
-                    box.xCenter * canvas.width - (box.width * canvas.width) / 2;
-                const y =
-                    box.yCenter * canvas.height - (box.height * canvas.height) / 2;
-                const w = box.width * canvas.width;
-                const h = box.height * canvas.height;
+                 let x =
+                box.xCenter * canvas.width - (box.width * canvas.width) / 2;
+                let y = 
+                box.yCenter * canvas.height - (box.height * canvas.height) / 2;
+                let w = box.width * canvas.width;
+                let h = box.height * canvas.height;
+                const paddingX =isMobile ? 0.9 : 0;
+                const paddingY =isMobile ? 0.45 : 0;
+                // Add padding
+                const padW = w * paddingX;
+                const padH = h * paddingY;
+
+                x -= padW / 2;
+                y -= padH / 2;
+                w += padW;
+                h += padH;
+
+                // Keep inside canvas bounds
+                x = Math.max(0, x);
+                y = Math.max(0, y);
+                w = Math.min(canvas.width - x, w);
+                h = Math.min(canvas.height - y, h);
 
                 const faceArea = w * h;
                 const minFaceArea = 25000;
@@ -423,7 +450,7 @@ const AdvanceFaceCapture = ({
                 </CardBody>
             </Card>
 
-            <Modal isOpen={modal} toggle={toggle} centered size="lg">
+            <Modal isOpen={modal} fullscreen={isMobile} className="custom-camera-modal" toggle={toggle} centered size="lg">
                 <ModalHeader toggle={toggle}>
                     {previewMode ? "Preview" : "Capture Your Face"}
                 </ModalHeader>
@@ -510,4 +537,4 @@ const AdvanceFaceCapture = ({
     );
 };
 
-export default AdvanceFaceCapture;
+export default FaceCapture;

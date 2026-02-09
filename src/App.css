@@ -43,8 +43,13 @@ body {
 }
 
 @keyframes flashAnim {
-  0% { opacity: 0.9; }
-  100% { opacity: 0; }
+  0% {
+    opacity: 0.9;
+  }
+
+  100% {
+    opacity: 0;
+  }
 }
 
 /* -------- SHARPNESS TEXT -------- */
@@ -120,13 +125,15 @@ canvas {
 
 
 .camera-wrapper {
-   position: relative;
+  position: relative;
   width: 100%;
-  aspect-ratio: 4 / 3; /* keeps correct proportion */
+  aspect-ratio: 4 / 3;
+  /* keeps correct proportion */
   border-radius: 20px;
   overflow: hidden;
   transition: 0.3s ease;
 }
+
 .camera-wrapper video {
   display: block;
 }
@@ -137,15 +144,24 @@ canvas {
   height: 100%;
   object-fit: cover;
 }
+
 .camera-wrapper.glow {
   box-shadow: 0 0 25px rgba(0, 255, 136, 0.6);
   animation: pulseGlow 1.5s infinite;
 }
 
 @keyframes pulseGlow {
-  0% { box-shadow: 0 0 10px rgba(0,255,136,0.4); }
-  50% { box-shadow: 0 0 30px rgba(0,255,136,0.9); }
-  100% { box-shadow: 0 0 10px rgba(0,255,136,0.4); }
+  0% {
+    box-shadow: 0 0 10px rgba(0, 255, 136, 0.4);
+  }
+
+  50% {
+    box-shadow: 0 0 30px rgba(0, 255, 136, 0.9);
+  }
+
+  100% {
+    box-shadow: 0 0 10px rgba(0, 255, 136, 0.4);
+  }
 }
 
 .face-badge {
@@ -162,8 +178,15 @@ canvas {
 }
 
 @keyframes fadeIn {
-  from { opacity: 0; transform: translateY(-5px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(-5px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 
@@ -177,8 +200,13 @@ canvas {
 }
 
 @keyframes flashAnim {
-  from { opacity: 0.8; }
-  to { opacity: 0; }
+  from {
+    opacity: 0.8;
+  }
+
+  to {
+    opacity: 0;
+  }
 }
 
 
@@ -234,6 +262,7 @@ canvas {
     opacity: 0;
     transform: translateY(15px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
@@ -301,4 +330,81 @@ canvas {
 .remove-btn:hover {
   transform: scale(1.1);
   background: red;
+}
+
+
+/* Make fullscreen modal clean */
+.mobile-fullscreen-modal .modal-content {
+  border-radius: 0;
+  height: 100vh;
+}
+
+.mobile-fullscreen-modal .modal-body {
+  padding: 0;
+}
+
+.mobile-fullscreen-modal .camera-wrapper {
+  height: 100vh;
+}
+
+
+
+/* Camera wrapper */
+.camera-box {
+  position: relative;
+  width: 100%;
+  background: black;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+/* Desktop ratio */
+@media (min-width: 768px) {
+  .camera-box {
+    aspect-ratio: 4/3;
+  }
+}
+
+/* Mobile ratio (taller view) */
+@media (max-width: 767px) {
+  .camera-box {
+    aspect-ratio: 3/4.5;
+    /* Better for document scanning */
+  }
+
+  .scanner-container {
+    padding: 10px 0px;
+  }
+}
+
+.web-cam {
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: cover;
+}
+
+.highlight-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+@media (max-width: 768px) {
+  .camera-wrapper {
+    height: 65vh;
+  }
+
+  .modal-body {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  }
+}
+
+@media (max-width: 480px) {
+  .camera-wrapper {
+    height: 65vh;
+  }
 }

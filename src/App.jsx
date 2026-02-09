@@ -1,5 +1,5 @@
-import FaceCapture from './components/FaceCapture'
 import './App.css';
+import FaceCapture from './components/FaceCapture';
 
 function App() {
   const handleCapture = (data) => {

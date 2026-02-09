@@ -91,8 +91,8 @@ This project demonstrates advanced frontend concepts including:
 Clone the repository:
 
 ```bash
-git clone https://github.com/your-username/your-repo-name.git
-cd your-repo-name
+git clone https://github.com/SanjayP2210/Live-Face-Detection.git
+cd Live-Face-Detection
 ```
 
 Install dependencies:

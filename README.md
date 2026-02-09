@@ -234,7 +234,7 @@ MIT License
 Frontend / Full Stack Developer  
 
 - 🔗 GitHub: https://github.com/SanjayP2210 
-- 💼 LinkedIn: https://linkedin.com/in/your-profile  
+<!-- - 💼 LinkedIn: https://linkedin.com/in/your-profile   -->
 - 🌐 Portfolio: https://sanjay-panchal-portfolio.netlify.app/
 
 ---

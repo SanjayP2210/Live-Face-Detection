@@ -1,6 +1,5 @@
-import FaceCapture from './Pages/FaceCapture'
+import FaceCapture from './components/FaceCapture'
 import './App.css';
-import AdvanceFaceCapture from './Pages/AdvanceFaceCapture';
 
 function App() {
   const handleCapture = (data) => {
@@ -10,7 +9,7 @@ function App() {
 
   return (
     <div>
-      <AdvanceFaceCapture
+      <FaceCapture
         enableDownload={true}
         enableBase64Viewer={true}
         onCapture={handleCapture}

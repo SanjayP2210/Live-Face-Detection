@@ -70,4 +70,4 @@ Built with ❤️ by **Sanjay Panchal**
 ```markdown
 ## 🌐 Live Demo
 
-👉 https://your-vercel-app-url.vercel.app
+👉 https://live-face-detection.vercel.app/

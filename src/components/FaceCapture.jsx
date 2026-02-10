@@ -43,6 +43,8 @@ const FaceCapture = ({
     const [loadingCamera, setLoadingCamera] = useState(false);
     const [facingMode, setFacingMode] = useState(FACING_MODE_USER);
     const mediaPipeCameraRef = useRef(null);
+    const [webcamKey, setWebcamKey] = useState(0);
+    const [devices, setDevices] = useState([]);
 
     useEffect(() => {
         const checkScreen = () => {
@@ -54,6 +56,18 @@ const FaceCapture = ({
 
         return () => window.removeEventListener("resize", checkScreen);
     }, []);
+
+    useEffect(() => {
+        if (modal) {
+            navigator.mediaDevices.enumerateDevices().then(devices => {
+                const videoDevices = devices.filter(d => d.kind === "videoinput");
+                setDevices(videoDevices);
+            });
+        } else {
+            setDevices([]);
+        }
+    }, [modal]);
+
     /* ---------------- MODAL TOGGLE ---------------- */
     const toggle = () => {
         setModal(!modal);
@@ -212,7 +226,7 @@ const FaceCapture = ({
                 mediaPipeCameraRef.current = null;
             }
         };
-    }, [modal, facingMode]);
+    }, [modal, facingMode,webcamRef.current]);
 
     const onResult = (results) => {
         const canvas = canvasRef.current;
@@ -375,31 +389,40 @@ const FaceCapture = ({
         setShowBase64(false);
     };
 
-    const switchCamera = useCallback(() => {
+    const switchCamera = useCallback(async () => {
         if (loadingCamera) return;
 
         setLoadingCamera(true);
 
-        // Stop MediaPipe camera
-        if (mediaPipeCameraRef.current) {
-            mediaPipeCameraRef.current.stop();
-            mediaPipeCameraRef.current = null;
-        }
-
-        // Stop webcam tracks
-        const video = webcamRef.current?.video;
-        if (video?.srcObject) {
-            video.srcObject.getTracks().forEach(track => track.stop());
-        }
-
+        // Clear auto capture timer
         clearTimeout(autoTimerRef.current);
         autoTimerRef.current = null;
 
-        setFacingMode(prev =>
-            prev === FACING_MODE_USER
-                ? FACING_MODE_ENVIRONMENT
-                : FACING_MODE_USER
-        );
+        // Stop MediaPipe camera safely
+        if (mediaPipeCameraRef.current) {
+            try {
+                await mediaPipeCameraRef.current.stop();
+            } catch (e) { }
+            mediaPipeCameraRef.current = null;
+        }
+
+        // Stop webcam stream properly
+        const stream = webcamRef.current?.stream;
+        if (stream) {
+            stream.getTracks().forEach(track => track.stop());
+        }
+
+        // Small delay to let browser release hardware
+        setTimeout(() => {
+            setFacingMode(prev =>
+                prev === FACING_MODE_USER
+                    ? FACING_MODE_ENVIRONMENT
+                    : FACING_MODE_USER
+            );
+
+            // Force webcam remount
+            setWebcamKey(prev => prev + 1);
+        }, 300);
     }, [loadingCamera]);
 
     return (
@@ -462,13 +485,21 @@ const FaceCapture = ({
                         {!previewMode ? (
                             <>
                                 <Webcam
-                                    key={facingMode}
+                                    key={webcamKey}
                                     ref={webcamRef}
                                     audio={false}
                                     screenshotFormat="image/jpeg"
-                                    videoConstraints={{ facingMode }}
-                                    onUserMedia={() => setLoadingCamera(false)}
-                                    onUserMediaError={() => setLoadingCamera(false)}
+                                    videoConstraints={{
+                                        facingMode: facingMode
+                                    }}
+                                    onUserMedia={() => {
+                                        setLoadingCamera(false);
+                                    }}
+                                    onUserMediaError={(err) => {
+                                        console.error("Camera error:", err);
+                                        setLoadingCamera(false);
+                                        alert("Camera could not start. Please allow permissions.");
+                                    }}
                                 />
 
                                 <canvas

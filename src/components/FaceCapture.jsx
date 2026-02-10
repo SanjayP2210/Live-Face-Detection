@@ -576,6 +576,7 @@ const FaceCapture = ({
                         {!loadingCamera && !previewMode ? (
                             <>
                                 <Webcam
+                                    key={selectedDeviceId}
                                     ref={webcamRef}
                                     screenshotFormat="image/jpeg"
                                     videoConstraints={{

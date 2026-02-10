@@ -12,6 +12,8 @@ import Webcam from "react-webcam";
 import { FaceDetection } from "@mediapipe/face_detection";
 import { Camera } from "@mediapipe/camera_utils";
 import "../App.css";
+import ActionButtons from "./ActionButtons";
+import DownloadButtons from "./DownloadButtons";
 
 const FaceCapture = ({
     enableDownload = true,
@@ -29,12 +31,56 @@ const FaceCapture = ({
     const [previewMode, setPreviewMode] = useState(false);
     const [faceDetected, setFaceDetected] = useState(false);
     const [faceBox, setFaceBox] = useState(null);
-    const [cameraFacing, setCameraFacing] = useState("user");
     const [cameraReady, setCameraReady] = useState(false);
     const [fullImage, setFullImage] = useState(null);
     const [cropImage, setCropImage] = useState(null);
     const [showBase64, setShowBase64] = useState(false);
     const [isMobile, setIsMobile] = useState(false);
+    const [videoDevices, setVideoDevices] = useState([]);
+    const [selectedDeviceId, setSelectedDeviceId] = useState(null);
+    const [isBackCamera, setIsBackCamera] = useState(false);
+    const [loadingCamera, setLoadingCamera] = useState(false);
+
+    useEffect(() => {
+        const detectAvailableCameras = async () => {
+            try {
+                // Ask permission first
+                const permissionStream = await navigator.mediaDevices.getUserMedia({
+                    video: true,
+                    audio: false
+                });
+
+                permissionStream.getTracks().forEach((track) => track.stop());
+
+                const devices = await navigator.mediaDevices.enumerateDevices();
+
+                const videoInputs = devices.filter(
+                    (device) => device.kind === "videoinput"
+                );
+
+                if (videoInputs.length === 0) {
+                    console.log("No video input devices found.");
+                    return;
+                }
+
+                setVideoDevices(videoInputs);
+
+                // Prefer environment camera
+                const environmentCamera =
+                    videoInputs.find((device) =>
+                        /environment|back|rear/i.test(device.label)
+                    ) || videoInputs[0];
+
+                setSelectedDeviceId(environmentCamera.deviceId);
+                setIsBackCamera(/environment|back|rear/i.test(environmentCamera.label));
+
+            } catch (error) {
+                console.error("Error detecting cameras:", error);
+            }
+        };
+
+        detectAvailableCameras();
+    }, []);
 
     useEffect(() => {
         const checkScreen = () => {
@@ -56,6 +102,9 @@ const FaceCapture = ({
         setCameraReady(false)
         setFullImage(null);
         setCropImage(null);
+        if (!modal && videoDevices.length > 0 && !selectedDeviceId) {
+            setSelectedDeviceId(videoDevices[0].deviceId);
+        }
     };
 
     /* ---------------- SHARPNESS CHECK ---------------- */
@@ -112,10 +161,25 @@ const FaceCapture = ({
                 const w = faceBox.width * img.width + padding * 2;
                 const h = faceBox.height * img.height + padding * 2;
 
-                canvas.width = w;
-                canvas.height = h;
+                // canvas.width = w;
+                // canvas.height = h;
+                const size = Math.max(w, h);
+                canvas.width = size;
+                canvas.height = size;
 
-                ctx.drawImage(img, x, y, w, h, 0, 0, w, h);
+                ctx.drawImage(
+                    img,
+                    x,
+                    y,
+                    w,
+                    h,
+                    (size - w) / 2,
+                    (size - h) / 2,
+                    w,
+                    h
+                );
+
+                // ctx.drawImage(img, x, y, w, h, 0, 0, w, h);
                 resolve(canvas.toDataURL("image/jpeg"));
             };
         });
@@ -167,14 +231,14 @@ const FaceCapture = ({
             if (results.detections.length > 0) {
                 const box = results.detections[0].boundingBox;
 
-                 let x =
-                box.xCenter * canvas.width - (box.width * canvas.width) / 2;
-                let y = 
-                box.yCenter * canvas.height - (box.height * canvas.height) / 2;
+                let x =
+                    box.xCenter * canvas.width - (box.width * canvas.width) / 2;
+                let y =
+                    box.yCenter * canvas.height - (box.height * canvas.height) / 2;
                 let w = box.width * canvas.width;
                 let h = box.height * canvas.height;
-                const paddingX =isMobile ? 0.9 : 0;
-                const paddingY =isMobile ? 0.45 : 0;
+                const paddingX = isMobile ? 0.9 : 0;
+                const paddingY = isMobile ? 0.45 : 0;
                 // Add padding
                 const padW = w * paddingX;
                 const padH = h * paddingY;
@@ -197,7 +261,7 @@ const FaceCapture = ({
                 setFaceBox(box);
 
                 // Draw yellow box initially
-                ctx.lineWidth = 3;
+                ctx.lineWidth = 2;
                 ctx.strokeStyle = "#00ff88";
                 // Smooth animation
                 const lerp = (start, end, t) => start + (end - start) * t;
@@ -207,10 +271,10 @@ const FaceCapture = ({
                 smoothBoxRef.current.w = lerp(smoothBoxRef.current.w, w, 0.2);
                 smoothBoxRef.current.h = lerp(smoothBoxRef.current.h, h, 0.2);
 
-                ctx.lineWidth = 3;
+                ctx.lineWidth = 2;
                 ctx.strokeStyle = faceDetected ? "#00ff88" : "#00ff88";
                 ctx.shadowColor = faceDetected ? "#00ff88" : "transparent";
-                ctx.shadowBlur = faceDetected ? 20 : 0;
+                ctx.shadowBlur = faceDetected ? 40 : 0;
 
                 ctx.strokeRect(
                     smoothBoxRef.current.x,
@@ -291,7 +355,7 @@ const FaceCapture = ({
                 cameraInstanceRef.current.stop();
             }
         };
-    }, [modal, previewMode, cameraFacing, cameraReady]);
+    }, [modal, previewMode, cameraReady]);
 
     const convertFormat = (base64, type = "image/jpeg") => {
         return base64.replace(/^data:image\/[^;]+/, `data:${type}`);
@@ -344,35 +408,20 @@ const FaceCapture = ({
         setShowBase64(false);
     };
 
-    const switchCamera = () => {
-        setCameraFacing((prev) =>
-            prev === "user" ? "environment" : "user"
+    const switchCamera = async () => {
+        if (videoDevices.length < 2) return;
+
+        setLoadingCamera(true);
+
+        const currentIndex = videoDevices.findIndex(
+            (device) => device.deviceId === selectedDeviceId
         );
+
+        const nextIndex = (currentIndex + 1) % videoDevices.length;
+        setSelectedDeviceId(videoDevices[nextIndex].deviceId);
+        setIsBackCamera((prev) => !prev);
+        setLoadingCamera(false);
     };
-
-    /* ---------------- DOWNLOAD JPG ---------------- */
-    // const downloadJpg = () => {
-    //     if (!capturedImage) return;
-
-    //     const link = document.createElement("a");
-    //     link.href = capturedImage;
-    //     link.download = "face-capture.jpg";
-    //     document.body.appendChild(link);
-    //     link.click();
-    //     document.body.removeChild(link);
-    // };
-
-    /* ---------------- COPY BASE64 ---------------- */
-    // const copyBase64 = async () => {
-    //     if (!capturedImage) return;
-
-    //     try {
-    //         await navigator.clipboard.writeText(capturedImage);
-    //         alert("Base64 copied to clipboard ✅");
-    //     } catch (err) {
-    //         console.error("Copy failed", err);
-    //     }
-    // };
 
     return (
         <div className="face-page">
@@ -385,66 +434,35 @@ const FaceCapture = ({
                         </Button>
                     ) : (
                         <>
-                            <div className="saved-image-wrapper">
-                                <img
-                                    src={capturedImage}
-                                    className="saved-face"
-                                    onClick={toggle}
-                                    alt="face"
-                                />
-
-                                <div
-                                    className="remove-btn"
-                                    onClick={removeCapturedImage}
-                                >
-                                    ✕
+                            <div className="saved-image-container">
+                                <div className="saved-image-wrapper">
+                                    <img
+                                        src={capturedImage}
+                                        className="saved-face"
+                                        alt="face"
+                                    />
                                 </div>
+
+                                <button
+                                    className="remove-btn-premium"
+                                    onClick={removeCapturedImage}
+                                    aria-label="Remove image"
+                                >
+                                    <span className="close-icon"></span>
+                                </button>
                             </div>
 
-                            {enableDownload &&
-                                <><div className="post-actions">
-                                    <Button size="sm" color="primary" onClick={() => downloadJpg("cropped")}>
-                                        JPG (Cropped)
-                                    </Button>
-
-                                    <Button size="sm" color="secondary" onClick={() => downloadPng("cropped")}>
-                                        PNG (Cropped)
-                                    </Button>
-                                </div>
-
-                                    <div className="post-actions">
-                                        <Button size="sm" color="info" onClick={() => downloadJpg("full")}>
-                                            JPG (Full)
-                                        </Button>
-
-                                        <Button size="sm" color="dark" onClick={() => downloadPng("full")}>
-                                            PNG (Full)
-                                        </Button>
-                                    </div></>
-                            }
-
-                            {enableBase64Viewer &&
-                                <>
-                                    <div className="post-actions">
-                                        <Button
-                                            size="sm"
-                                            color="success"
-                                            onClick={() => setShowBase64(!showBase64)}
-                                        >
-                                            {showBase64 ? "Hide Base64" : "Show Base64"}
-                                        </Button>
-                                    </div>
-                                    <>
-                                        {showBase64 && (
-                                            <textarea
-                                                value={capturedImage}
-                                                readOnly
-                                                className="base64-box"
-                                            />
-                                        )}
-                                    </>
-                                </>
-                            }
+                            <DownloadButtons
+                                {...{
+                                    enableDownload,
+                                    enableBase64Viewer,
+                                    showBase64,
+                                    setShowBase64,
+                                    capturedImage,
+                                    downloadPng,
+                                    downloadJpg
+                                }}
+                            />
                         </>
                     )}
                 </CardBody>
@@ -463,7 +481,7 @@ const FaceCapture = ({
                                     ref={webcamRef}
                                     screenshotFormat="image/jpeg"
                                     videoConstraints={{
-                                        facingMode: cameraFacing
+                                        deviceId: selectedDeviceId ? { exact: selectedDeviceId } : undefined
                                     }}
                                     onUserMedia={() => setCameraReady(true)}
                                     style={{
@@ -503,34 +521,18 @@ const FaceCapture = ({
                 </ModalBody>
 
                 <ModalFooter className="justify-content-center">
-                    {previewMode ? (
-                        <>
-                            <Button color="warning" onClick={retake}>
-                                Retake
-                            </Button>
-                            <Button color="success" onClick={confirmImage}>
-                                OK
-                            </Button>
-                        </>
-                    ) : (
-                        <>
-                            <Button color="secondary" onClick={toggle}>
-                                Close
-                            </Button>
-
-                            {faceDetected && (
-                                <>
-                                    <Button color="info" onClick={switchCamera}>
-                                        Switch Camera
-                                    </Button>
-
-                                    <Button color="primary" onClick={capture}>
-                                        Capture
-                                    </Button>
-                                </>
-                            )}
-                        </>
-                    )}
+                    <ActionButtons
+                        {...{
+                            previewMode,
+                            retake,
+                            confirmImage,
+                            toggle,
+                            faceDetected,
+                            capture, isBackCamera,
+                            loadingCamera, videoDevices,
+                            switchCamera
+                        }}
+                    />
                 </ModalFooter>
             </Modal>
         </div>

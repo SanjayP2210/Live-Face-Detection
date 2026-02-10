@@ -1,4 +1,5 @@
 import './App.css';
+import WebcamCapture from './components/CameraTest';
 import FaceCapture from './components/FaceCapture';
 
 function App() {
@@ -9,11 +10,12 @@ function App() {
 
   return (
     <div>
-      <FaceCapture
+      {/* <FaceCapture
         enableDownload={true}
         enableBase64Viewer={true}
         onCapture={handleCapture}
-      />
+      /> */}
+      <WebcamCapture/>
     </div>
   );
 }

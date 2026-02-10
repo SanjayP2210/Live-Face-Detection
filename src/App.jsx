@@ -10,11 +10,11 @@ function App() {
 
   return (
     <div>
-      {/* <FaceCapture
+      <FaceCapture
         enableDownload={true}
         enableBase64Viewer={true}
         onCapture={handleCapture}
-      /> */}
+      />
       <WebcamCapture/>
     </div>
   );

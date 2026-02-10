@@ -8,14 +8,8 @@ const FACING_MODE_ENVIRONMENT = "environment";
 
 export default function WebcamCapture() {
   const webcamRef = useRef(null);
-  const [image, setImage] = useState("");
 
   const [facingMode, setFacingMode] = useState(FACING_MODE_USER);
-
-  const capture = useCallback(() => {
-    const imageSrc = webcamRef.current.getScreenshot();
-    setImage(imageSrc);
-  }, [webcamRef]);
 
   let videoConstraints = {
     facingMode: facingMode,
@@ -37,7 +31,6 @@ export default function WebcamCapture() {
     <>
       <div className="webcam-container">
         <div className="webcam-img">
-          {image === "" ? (
             <Webcam
               className="webcam"
               audio={false}
@@ -46,13 +39,6 @@ export default function WebcamCapture() {
               videoConstraints={videoConstraints}
               screenshotQuality={1}
             />
-          ) : (
-            <img
-              src={image}
-              alt="Scan"
-              style={{ width: "500px", height: "auto" }}
-            />
-          )}
         </div>
         <button onClick={handleClick}>Switch camera</button>
       </div>

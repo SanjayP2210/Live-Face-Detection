@@ -14,6 +14,7 @@ import { Camera } from "@mediapipe/camera_utils";
 import "../App.css";
 import ActionButtons from "./ActionButtons";
 import DownloadButtons from "./DownloadButtons";
+import { useCallback } from "react";
 const FACING_MODE_USER = "user";
 const FACING_MODE_ENVIRONMENT = "environment";
 
@@ -41,12 +42,11 @@ const FaceCapture = ({
     const [isBackCamera, setIsBackCamera] = useState(false);
     const [loadingCamera, setLoadingCamera] = useState(false);
     const [facingMode, setFacingMode] = useState(FACING_MODE_USER);
-      const [cameraStream, setCameraStream] = useState(null);
+    const [cameraStream, setCameraStream] = useState(null);
     
     const videoConstraints = {
         facingMode: facingMode,
     }
-
 
     useEffect(() => {
         const checkScreen = () => {
@@ -177,11 +177,11 @@ const FaceCapture = ({
         setCameraStream(null);
         }
     };
+    
     /* ---------------- FACE DETECTION ---------------- */
     useEffect(() => {
         if(!modal) return;
-        if (!webcamRef?.current) return;
-        if(cameraStream) return;
+        if (!webcamRef?.current || cameraStream) return;
 
         const faceDetection = new FaceDetection({
             locateFile: (file) =>
@@ -216,7 +216,7 @@ const FaceCapture = ({
         return () => {
             stopCamera();
         };
-    }, [modal,videoConstraints, cameraStream, webcamRef]);
+    }, [modal,webcamRef]);
 
     const onResult = (results) => {
         const canvas = canvasRef.current;
@@ -379,17 +379,17 @@ const FaceCapture = ({
         setShowBase64(false);
     };
 
-    const switchCamera = () => {
+    const switchCamera = useCallback(() => {
         setLoadingCamera(true);
-        setIsBackCamera((prev) => !prev);
+        // setIsBackCamera((prev) => !prev);
         setFacingMode((prevState) =>
-        prevState === FACING_MODE_USER
+            prevState === FACING_MODE_USER
             ? FACING_MODE_ENVIRONMENT
             : FACING_MODE_USER
         );
         stopCamera(null);
         setLoadingCamera(false);
-    };
+    }, []);
 
     return (
         <div className="face-page">
@@ -446,6 +446,8 @@ const FaceCapture = ({
                         {!previewMode ? (
                             <>
                                 <Webcam
+                                      className="webcam"
+                                    audio={false}
                                     ref={webcamRef}
                                     screenshotFormat="image/jpeg"
                                     videoConstraints={videoConstraints}
@@ -453,14 +455,6 @@ const FaceCapture = ({
                                     style={{
                                         width: "100%",
                                         borderRadius: 15
-                                    }}
-                                    onUserMedia={() => {
-                                        setCameraReady(true);
-                                        setLoadingCamera(false);  // 🔥 stop loader
-                                    }}
-                                    onUserMediaError={(err) => {
-                                        console.error(err);
-                                        setLoadingCamera(false);
                                     }}
                                 />
 

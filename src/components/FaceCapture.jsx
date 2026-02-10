@@ -430,7 +430,7 @@ const FaceCapture = ({
             if (cameraInstanceRef.current) {
                 cameraInstanceRef.current.stop();
             }
-            stopCameraStream();
+            // stopCameraStream();
         };
     }, [modal, previewMode, cameraReady]);
 
@@ -485,8 +485,6 @@ const FaceCapture = ({
     };
 
     const switchCamera = () => {
-        // if (videoDevices.length < 2) return;
-        // Find the current camera
         setLoadingCamera(true);
         setCameraReady(false);
         const currentIndex = videoDevices.findIndex(
@@ -502,9 +500,9 @@ const FaceCapture = ({
                 } else {
                     console.log("Camera initialized successfully");
                 }
+                setLoadingCamera(false);
             });
             setSelectedDeviceId(videoDevices[nextIndex].deviceId);
-            setLoadingCamera(false);
         }
         setIsBackCamera((prevState) => !prevState);
     };
@@ -565,12 +563,15 @@ const FaceCapture = ({
                             <div className="spinner"></div>
                             <p>Loading Camera...</p>
                         </div>}
-                        {!loadingCamera && !previewMode ? (
+                        {!previewMode ? (
                             <>
                                 <Webcam
                                     ref={webcamRef}
                                     screenshotFormat="image/jpeg"
-                                    videoConstraints={videoConstraints}
+                                    videoConstraints={{
+                                        ...videoConstraints,
+                                        deviceId: selectedDeviceId ? { exact: selectedDeviceId } : undefined
+                                    }}
                                     style={{
                                         width: "100%",
                                         borderRadius: 15

@@ -47,9 +47,26 @@ export default function WebcamCapture() {
 
   /* ---------------- FACE DETECTION ---------------- */
   useEffect(() => {
-    if (!deviceId) return;
+  if (!deviceId) return;
 
-    const faceDetection = new FaceDetection.FaceDetection({
+  let animationFrameId;
+  let faceDetection;
+
+  const startDetection = async () => {
+    const video = webcamRef.current?.video;
+
+    if (!video) return;
+
+    // Wait until video is ready
+    await new Promise((resolve) => {
+      if (video.readyState === 4) {
+        resolve();
+      } else {
+        video.onloadeddata = () => resolve();
+      }
+    });
+
+    faceDetection = new FaceDetection.FaceDetection({
       locateFile: (file) =>
         `https://cdn.jsdelivr.net/npm/@mediapipe/face_detection/${file}`,
     });
@@ -82,7 +99,6 @@ export default function WebcamCapture() {
       const x =
         bbox.xCenter * canvas.width -
         (bbox.width * canvas.width) / 2;
-
       const y =
         bbox.yCenter * canvas.height -
         (bbox.height * canvas.height) / 2;
@@ -105,8 +121,6 @@ export default function WebcamCapture() {
       setIsFaceCentered(isCentered);
     });
 
-    faceDetectorRef.current = faceDetection;
-
     const detect = async () => {
       if (
         webcamRef.current &&
@@ -118,15 +132,23 @@ export default function WebcamCapture() {
         });
       }
 
-      requestAnimationFrame(detect);
+      animationFrameId = requestAnimationFrame(detect);
     };
 
     detect();
+  };
 
-    return () => {
+  startDetection();
+
+  return () => {
+    if (animationFrameId) {
+      cancelAnimationFrame(animationFrameId);
+    }
+    if (faceDetection) {
       faceDetection.close();
-    };
-  }, [deviceId]);
+    }
+  };
+}, [deviceId]);
 
   return (
     <div className="camera-container">
@@ -137,6 +159,7 @@ export default function WebcamCapture() {
           screenshotFormat="image/jpeg"
           videoConstraints={videoConstraints}
           className="webcam"
+          onUserMedia={() => console.log("Camera ready")}
         />
         <canvas ref={canvasRef} className="overlay" />
       </div>

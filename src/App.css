@@ -588,3 +588,41 @@ canvas {
 .remove-btn-premium:hover {
   transform: scale(1.15) rotate(90deg);
 }
+
+
+/* ================= CAMERA LOADER ================= */
+.camera-loader {
+  position: absolute;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.85);
+  backdrop-filter: blur(6px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  z-index: 20;
+  border-radius: 20px;
+  animation: fadeIn 0.3s ease;
+}
+
+.spinner {
+  width: 45px;
+  height: 45px;
+  border: 4px solid rgba(255, 255, 255, 0.2);
+  border-top: 4px solid #00ff88;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  margin-bottom: 10px;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.camera-loader p {
+  color: #00ff88;
+  font-weight: 500;
+  font-size: 14px;
+}

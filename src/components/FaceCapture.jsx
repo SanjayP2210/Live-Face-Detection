@@ -40,7 +40,10 @@ const FaceCapture = ({
     const [selectedDeviceId, setSelectedDeviceId] = useState(null);
     const [isBackCamera, setIsBackCamera] = useState(false);
     const [loadingCamera, setLoadingCamera] = useState(false);
-
+    const [videoConstraints, setVideoConstraints] = useState({
+        facingMode: isBackCamera ? "environment" : "user",
+        deviceId: selectedDeviceId ? { exact: selectedDeviceId } : undefined
+    });
 
     const stopCameraStream = () => {
         if (webcamRef.current && webcamRef.current.video) {
@@ -75,6 +78,10 @@ const FaceCapture = ({
                     webcamRef.current.video.srcObject = stream;
                 }
                 callback(null, stream);
+                setVideoConstraints({
+                    facingMode: isBackCamera ? "environment" : "user",
+                    deviceId: cameraId ? { exact: cameraId } : undefined
+                });
             })
             .catch(function (err) {
                 console.error("Failed to access camera:", err);
@@ -481,8 +488,7 @@ const FaceCapture = ({
         // if (videoDevices.length < 2) return;
         // Find the current camera
         setLoadingCamera(true);
-        stopCameraStream(); // 🔥 VERY IMPORTANT
-        // setCameraReady(false);
+        setCameraReady(false);
         const currentIndex = videoDevices.findIndex(
             (device) => device.deviceId === selectedDeviceId,
         );
@@ -555,18 +561,28 @@ const FaceCapture = ({
 
                 <ModalBody className="text-center position-relative">
                     <div className={`camera-wrapper ${faceDetected ? "glow" : ""}`}>
-                        {!previewMode ? (
+                        {(loadingCamera || !cameraReady) && <div className="camera-loader">
+                            <div className="spinner"></div>
+                            <p>Loading Camera...</p>
+                        </div>}
+                        {!loadingCamera && !previewMode ? (
                             <>
                                 <Webcam
                                     ref={webcamRef}
                                     screenshotFormat="image/jpeg"
-                                    videoConstraints={{
-                                        deviceId: selectedDeviceId ? { exact: selectedDeviceId } : undefined
-                                    }}
-                                    onUserMedia={() => setCameraReady(true)}
+                                    videoConstraints={videoConstraints}
                                     style={{
                                         width: "100%",
                                         borderRadius: 15
+                                    }}
+                                    mirrored={!isBackCamera}
+                                    onUserMedia={() => {
+                                        setCameraReady(true);
+                                        setLoadingCamera(false);  // 🔥 stop loader
+                                    }}
+                                    onUserMediaError={(err) => {
+                                        console.error(err);
+                                        setLoadingCamera(false);
                                     }}
                                 />
 
@@ -576,7 +592,8 @@ const FaceCapture = ({
                                         position: "absolute",
                                         inset: 0,
                                         width: "100%",
-                                        height: "100%"
+                                        height: "100%",
+                                        transform: !isBackCamera ? "scaleX(-1)" : '',
                                     }}
                                 />
                                 {faceDetected && (

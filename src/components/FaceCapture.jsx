@@ -504,11 +504,12 @@ const FaceCapture = ({
         const currentIndex = videoDevices.findIndex(
             (device) => device.deviceId === selectedDeviceId,
         );
-
+        
         if (currentIndex !== -1) {
             // Determine the next camera (switch between front and rear)
             const nextIndex = (currentIndex + 1) % videoDevices.length;
-            cameraInit(videoDevices[nextIndex].deviceId, (err, stream) => {
+            const deviceId = videoDevices[nextIndex].deviceId;
+            cameraInit(deviceId, (err, stream) => {
                 if (err) {
                     console.error("Failed to initialize camera:", err);
                 } else {
@@ -516,14 +517,15 @@ const FaceCapture = ({
                 }
                 setLoadingCamera(false);
             });
-            setSelectedDeviceId(videoDevices[nextIndex].deviceId);
+            setSelectedDeviceId(deviceId);
+            const faceMode = facingMode === FACING_MODE_USER ? FACING_MODE_ENVIRONMENT : FACING_MODE_USER;
+            setFacingMode(faceMode);
+            setVideoConstraints((prev) => ({...prev,
+                facingMode:faceMode,
+                deviceId: deviceId ? { exact: deviceId } : undefined
+            }))
+            setIsBackCamera((prevState) => !prevState);
         }
-        setIsBackCamera((prevState) => !prevState);
-        setFacingMode((prevState) =>
-            prevState === FACING_MODE_USER
-                ? FACING_MODE_ENVIRONMENT
-                : FACING_MODE_USER
-        );
     };
 
     console.log(facingMode + videoConstraints);
@@ -593,10 +595,6 @@ const FaceCapture = ({
                                     screenshotFormat="image/jpeg"
                                     videoConstraints={videoConstraints}
                                     screenshotQuality={1}
-                                    // videoConstraints={{
-                                    //     ...videoConstraints,
-                                    //     deviceId: selectedDeviceId ? { exact: selectedDeviceId } : undefined
-                                    // }}
                                     style={{
                                         width: "100%",
                                         borderRadius: 15

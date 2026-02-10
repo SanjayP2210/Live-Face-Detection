@@ -41,46 +41,54 @@ const FaceCapture = ({
     const [isBackCamera, setIsBackCamera] = useState(false);
     const [loadingCamera, setLoadingCamera] = useState(false);
 
-    useEffect(() => {
-        const detectAvailableCameras = async () => {
-            try {
-                // Ask permission first
-                const permissionStream = await navigator.mediaDevices.getUserMedia({
-                    video: true,
-                    audio: false
-                });
 
-                permissionStream.getTracks().forEach((track) => track.stop());
-
-                const devices = await navigator.mediaDevices.enumerateDevices();
-
-                const videoInputs = devices.filter(
-                    (device) => device.kind === "videoinput"
-                );
-
-                if (videoInputs.length === 0) {
-                    console.log("No video input devices found.");
-                    return;
-                }
-
-                setVideoDevices(videoInputs);
-
-                // Prefer environment camera
-                const environmentCamera =
-                    videoInputs.find((device) =>
-                        /environment|back|rear/i.test(device.label)
-                    ) || videoInputs[0];
-
-                setSelectedDeviceId(environmentCamera.deviceId);
-                setIsBackCamera(/environment|back|rear/i.test(environmentCamera.label));
-
-            } catch (error) {
-                console.error("Error detecting cameras:", error);
+    const stopCameraStream = () => {
+        if (webcamRef.current && webcamRef.current.video) {
+            const stream = webcamRef.current.video.srcObject;
+            if (stream) {
+                const tracks = stream.getTracks();
+                tracks.forEach(track => track.stop());
             }
-        };
+        }
+    };
 
-        detectAvailableCameras();
-    }, []);
+
+    const detectAvailableCameras = async () => {
+    try {
+        // Ask permission first
+        const permissionStream = await navigator.mediaDevices.getUserMedia({
+            video: true,
+            audio: false
+        });
+
+        permissionStream.getTracks().forEach((track) => track.stop());
+
+        const devices = await navigator.mediaDevices.enumerateDevices();
+
+        const videoInputs = devices.filter(
+            (device) => device.kind === "videoinput"
+        );
+
+        if (videoInputs.length === 0) {
+            console.log("No video input devices found.");
+            return;
+        }
+
+        setVideoDevices(videoInputs);
+
+        // Prefer environment camera
+        const environmentCamera =
+            videoInputs.find((device) =>
+                /environment|back|rear/i.test(device.label)
+            ) || videoInputs[0];
+
+        setSelectedDeviceId(environmentCamera.deviceId);
+        setIsBackCamera(/environment|back|rear/i.test(environmentCamera.label));
+
+    } catch (error) {
+        console.error("Error detecting cameras:", error);
+    }
+};
 
     useEffect(() => {
         const checkScreen = () => {
@@ -94,17 +102,18 @@ const FaceCapture = ({
     }, []);
     /* ---------------- MODAL TOGGLE ---------------- */
     const toggle = () => {
+        if (modal) {
+            stopCameraStream();  // 🔥 stop before closing
+        }
+
         setModal(!modal);
         setFaceDetected(false);
         setPreviewMode(false);
         clearTimeout(autoTimerRef.current);
         autoTimerRef.current = null;
-        setCameraReady(false)
+        setCameraReady(false);
         setFullImage(null);
         setCropImage(null);
-        if (!modal && videoDevices.length > 0 && !selectedDeviceId) {
-            setSelectedDeviceId(videoDevices[0].deviceId);
-        }
     };
 
     /* ---------------- SHARPNESS CHECK ---------------- */
@@ -210,6 +219,9 @@ const FaceCapture = ({
 
     /* ---------------- FACE DETECTION ---------------- */
     useEffect(() => {
+        if(modal){
+         detectAvailableCameras();
+        }
         if (!modal || previewMode) return;
 
         const faceDetection = new FaceDetection({
@@ -354,6 +366,7 @@ const FaceCapture = ({
             if (cameraInstanceRef.current) {
                 cameraInstanceRef.current.stop();
             }
+            stopCameraStream();
         };
     }, [modal, previewMode, cameraReady]);
 
@@ -370,7 +383,6 @@ const FaceCapture = ({
         link.click();
         document.body.removeChild(link);
     };
-
     /* Download JPG */
     const downloadJpg = (type = "cropped") => {
         const img = type === "full" ? fullImage : capturedImage;
@@ -408,18 +420,18 @@ const FaceCapture = ({
         setShowBase64(false);
     };
 
-    const switchCamera = async () => {
+    const switchCamera = () => {
         if (videoDevices.length < 2) return;
-
         setLoadingCamera(true);
+        stopCameraStream(); // 🔥 VERY IMPORTANT
 
         const currentIndex = videoDevices.findIndex(
-            (device) => device.deviceId === selectedDeviceId
+            device => device.deviceId === selectedDeviceId
         );
 
         const nextIndex = (currentIndex + 1) % videoDevices.length;
+
         setSelectedDeviceId(videoDevices[nextIndex].deviceId);
-        setIsBackCamera((prev) => !prev);
         setLoadingCamera(false);
     };
 
@@ -529,7 +541,8 @@ const FaceCapture = ({
                             toggle,
                             faceDetected,
                             capture, isBackCamera,
-                            loadingCamera, videoDevices,
+                            loadingCamera, 
+                            videoDevices,
                             switchCamera
                         }}
                     />

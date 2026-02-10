@@ -216,7 +216,7 @@ const FaceCapture = ({
         return () => {
             stopCamera();
         };
-    }, [modal,webcamRef]);
+    }, [modal,webcamRef,facingMode]);
 
     const onResult = (results) => {
         const canvas = canvasRef.current;
@@ -380,15 +380,15 @@ const FaceCapture = ({
     };
 
     const switchCamera = useCallback(() => {
-        setLoadingCamera(true);
+        // setLoadingCamera(true);
         // setIsBackCamera((prev) => !prev);
         setFacingMode((prevState) =>
             prevState === FACING_MODE_USER
             ? FACING_MODE_ENVIRONMENT
             : FACING_MODE_USER
         );
-        stopCamera(null);
-        setLoadingCamera(false);
+        // stopCamera(null);
+        // setLoadingCamera(false);
     }, []);
 
     return (
@@ -446,17 +446,13 @@ const FaceCapture = ({
                         {!previewMode ? (
                             <>
                                 <Webcam
-                                      className="webcam"
+                                    className="webcam"
                                     audio={false}
                                     ref={webcamRef}
                                     screenshotFormat="image/jpeg"
                                     videoConstraints={videoConstraints}
                                     screenshotQuality={1}
-                                    style={{
-                                        width: "100%",
-                                        borderRadius: 15
-                                    }}
-                                />
+                                    />
 
                                 <canvas
                                     ref={canvasRef}

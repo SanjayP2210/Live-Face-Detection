@@ -32,13 +32,14 @@ const ActionButtons = ({
                         <Button
                             color="info"
                             onClick={switchCamera}
-                            disabled={videoDevices.length < 2 || loadingCamera}
+                        // disabled={videoDevices.length < 2 || loadingCamera}
                         >
-                            {loadingCamera
+                            Switch Camera
+                            {/* {loadingCamera
                                 ? "Switching..."
                                 : isBackCamera
                                     ? "Use Front Camera"
-                                    : "Use Back Camera"}
+                                    : "Use Back Camera"} */}
                         </Button>
 
                         <Button color="primary" onClick={capture}>

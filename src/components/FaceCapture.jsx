@@ -14,6 +14,9 @@ import { Camera } from "@mediapipe/camera_utils";
 import "../App.css";
 import ActionButtons from "./ActionButtons";
 import DownloadButtons from "./DownloadButtons";
+import { useCallback } from "react";
+const FACING_MODE_USER = "user";
+const FACING_MODE_ENVIRONMENT = "environment";
 
 const FaceCapture = ({
     enableDownload = true,
@@ -41,8 +44,9 @@ const FaceCapture = ({
     const [isBackCamera, setIsBackCamera] = useState(false);
     const [loadingCamera, setLoadingCamera] = useState(false);
     const [stream, setStream] = useState(null);
+    const [facingMode, setFacingMode] = React.useState(FACING_MODE_USER);
     const [videoConstraints, setVideoConstraints] = useState({
-        facingMode: isBackCamera ? "environment" : "user",
+        facingMode,
         deviceId: selectedDeviceId ? { exact: selectedDeviceId } : undefined
     });
 
@@ -515,7 +519,15 @@ const FaceCapture = ({
             setSelectedDeviceId(videoDevices[nextIndex].deviceId);
         }
         setIsBackCamera((prevState) => !prevState);
+        setFacingMode((prevState) =>
+            prevState === FACING_MODE_USER
+                ? FACING_MODE_ENVIRONMENT
+                : FACING_MODE_USER
+        );
     };
+
+    console.log(facingMode + videoConstraints);
+
 
     return (
         <div className="face-page">
@@ -579,24 +591,20 @@ const FaceCapture = ({
                                     key={selectedDeviceId}
                                     ref={webcamRef}
                                     screenshotFormat="image/jpeg"
-                                    videoConstraints={{
-                                        ...videoConstraints,
-                                        deviceId: selectedDeviceId ? { exact: selectedDeviceId } : undefined
-                                    }}
+                                    videoConstraints={videoConstraints}
+                                    screenshotQuality={1}
+                                    // videoConstraints={{
+                                    //     ...videoConstraints,
+                                    //     deviceId: selectedDeviceId ? { exact: selectedDeviceId } : undefined
+                                    // }}
                                     style={{
                                         width: "100%",
                                         borderRadius: 15
                                     }}
-                                    mirrored={!isBackCamera}
+                                    // mirrored={!isBackCamera}
                                     onUserMedia={() => {
                                         setCameraReady(true);
                                         setLoadingCamera(false);  // 🔥 stop loader
-                                        if (stream) {
-                                            if (webcamRef.current) {
-                                                console.log("webcamRef.current.video", webcamRef.current.video);
-                                                webcamRef.current.video.srcObject = stream;
-                                            }
-                                        }
                                     }}
                                     onUserMediaError={(err) => {
                                         console.error(err);
@@ -611,7 +619,7 @@ const FaceCapture = ({
                                         inset: 0,
                                         width: "100%",
                                         height: "100%",
-                                        transform: !isBackCamera ? "scaleX(-1)" : '',
+                                        // transform: !isBackCamera ? "scaleX(-1)" : '',
                                     }}
                                 />
                                 {faceDetected && (

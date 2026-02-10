@@ -38,72 +38,15 @@ const FaceCapture = ({
     const [cropImage, setCropImage] = useState(null);
     const [showBase64, setShowBase64] = useState(false);
     const [isMobile, setIsMobile] = useState(false);
-    const [videoDevices, setVideoDevices] = useState([]);
-    const [selectedDeviceId, setSelectedDeviceId] = useState(null);
     const [isBackCamera, setIsBackCamera] = useState(false);
     const [loadingCamera, setLoadingCamera] = useState(false);
     const [facingMode, setFacingMode] = useState(FACING_MODE_USER);
-    const [videoConstraints, setVideoConstraints] = useState({
+      const [cameraStream, setCameraStream] = useState(null);
+    
+    const videoConstraints = {
         facingMode: facingMode,
-        deviceId: selectedDeviceId ? { exact: selectedDeviceId } : undefined
-    })
+    }
 
-
-    useEffect(() => {
-        if (selectedDeviceId) {
-            const facMode = facingMode === FACING_MODE_USER ? FACING_MODE_ENVIRONMENT : FACING_MODE_USER;
-            setFacingMode((prevState) =>
-                prevState === FACING_MODE_USER
-                    ? FACING_MODE_ENVIRONMENT
-                    : FACING_MODE_USER
-                );
-            setVideoConstraints({
-                facingMode: facMode,
-                deviceId: selectedDeviceId ? { exact: selectedDeviceId } : undefined
-            })
-        }
-    }, [selectedDeviceId,isBackCamera])
-
-    useEffect(() => {
-        const detectAvailableCameras = async () => {
-            try {
-                // Ask permission first
-                const permissionStream = await navigator.mediaDevices.getUserMedia({
-                    video: true,
-                    audio: false
-                });
-
-                permissionStream.getTracks().forEach((track) => track.stop());
-
-                const devices = await navigator.mediaDevices.enumerateDevices();
-
-                const videoInputs = devices.filter(
-                    (device) => device.kind === "videoinput"
-                );
-
-                if (videoInputs.length === 0) {
-                    console.log("No video input devices found.");
-                    return;
-                }
-
-                setVideoDevices(videoInputs);
-
-                // Prefer environment camera
-                const environmentCamera =
-                    videoInputs.find((device) =>
-                        /environment|back|rear/i.test(device.label)
-                    ) || videoInputs[0];
-
-                setSelectedDeviceId(environmentCamera.deviceId);
-                setIsBackCamera(/environment|back|rear/i.test(environmentCamera.label));
-
-            } catch (error) {
-                console.error("Error detecting cameras:", error);
-            }
-        };
-
-        detectAvailableCameras();
-    }, []);
 
     useEffect(() => {
         const checkScreen = () => {
@@ -125,9 +68,6 @@ const FaceCapture = ({
         setCameraReady(false)
         setFullImage(null);
         setCropImage(null);
-        if (!modal && videoDevices.length > 0 && !selectedDeviceId) {
-            setSelectedDeviceId(videoDevices[0].deviceId);
-        }
     };
 
     /* ---------------- SHARPNESS CHECK ---------------- */
@@ -231,9 +171,17 @@ const FaceCapture = ({
         setPreviewMode(true);
     };
 
+    const stopCamera = () => {
+        if (cameraStream) {
+        cameraStream.stop();
+        setCameraStream(null);
+        }
+    };
     /* ---------------- FACE DETECTION ---------------- */
     useEffect(() => {
-        if (!modal || previewMode) return;
+        if(!modal) return;
+        if (!webcamRef?.current) return;
+        if(cameraStream) return;
 
         const faceDetection = new FaceDetection({
             locateFile: (file) =>
@@ -245,119 +193,10 @@ const FaceCapture = ({
             minDetectionConfidence: 0.7
         });
 
-        faceDetection.onResults((results) => {
-            const canvas = canvasRef.current;
-            const ctx = canvas.getContext("2d");
-            const video = webcamRef.current?.video;
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            if (!canvas || !video) return;
-            if (results.detections.length > 0) {
-                const box = results.detections[0].boundingBox;
+        faceDetection.onResults(onResult);
 
-                let x =
-                    box.xCenter * canvas.width - (box.width * canvas.width) / 2;
-                let y =
-                    box.yCenter * canvas.height - (box.height * canvas.height) / 2;
-                let w = box.width * canvas.width;
-                let h = box.height * canvas.height;
-                const paddingX = isMobile ? 0.9 : 0;
-                const paddingY = isMobile ? 0.45 : 0;
-                // Add padding
-                const padW = w * paddingX;
-                const padH = h * paddingY;
-
-                x -= padW / 2;
-                y -= padH / 2;
-                w += padW;
-                h += padH;
-
-                // Keep inside canvas bounds
-                x = Math.max(0, x);
-                y = Math.max(0, y);
-                w = Math.min(canvas.width - x, w);
-                h = Math.min(canvas.height - y, h);
-
-                const faceArea = w * h;
-                const minFaceArea = 25000;
-
-                setFaceDetected(true);
-                setFaceBox(box);
-
-                // Draw yellow box initially
-                ctx.lineWidth = 2;
-                ctx.strokeStyle = "#00ff88";
-                // Smooth animation
-                const lerp = (start, end, t) => start + (end - start) * t;
-
-                smoothBoxRef.current.x = lerp(smoothBoxRef.current.x, x, 0.2);
-                smoothBoxRef.current.y = lerp(smoothBoxRef.current.y, y, 0.2);
-                smoothBoxRef.current.w = lerp(smoothBoxRef.current.w, w, 0.2);
-                smoothBoxRef.current.h = lerp(smoothBoxRef.current.h, h, 0.2);
-
-                ctx.lineWidth = 2;
-                ctx.strokeStyle = faceDetected ? "#00ff88" : "#00ff88";
-                ctx.shadowColor = faceDetected ? "#00ff88" : "transparent";
-                ctx.shadowBlur = faceDetected ? 40 : 0;
-
-                ctx.strokeRect(
-                    smoothBoxRef.current.x,
-                    smoothBoxRef.current.y,
-                    smoothBoxRef.current.w,
-                    smoothBoxRef.current.h
-                );
-
-                const sharp = checkSharpness(video);
-
-                // Stability check
-                if (lastBoxRef.current) {
-                    const dx = Math.abs(lastBoxRef.current.x - x);
-                    const dy = Math.abs(lastBoxRef.current.y - y);
-                    const isStable = dx < 10 && dy < 10;
-
-                    if (isStable && sharp && faceArea > minFaceArea) {
-                        // Turn green when stable
-                        ctx.strokeStyle = "#00ff88";
-                        // Smooth animation
-                        const lerp = (start, end, t) => start + (end - start) * t;
-
-                        smoothBoxRef.current.x = lerp(smoothBoxRef.current.x, x, 0.2);
-                        smoothBoxRef.current.y = lerp(smoothBoxRef.current.y, y, 0.2);
-                        smoothBoxRef.current.w = lerp(smoothBoxRef.current.w, w, 0.2);
-                        smoothBoxRef.current.h = lerp(smoothBoxRef.current.h, h, 0.2);
-
-                        ctx.lineWidth = 3;
-                        ctx.strokeStyle = faceDetected ? "#00ff88" : "#ffcc00";
-                        ctx.shadowColor = faceDetected ? "#00ff88" : "transparent";
-                        ctx.shadowBlur = faceDetected ? 20 : 0;
-
-                        ctx.strokeRect(
-                            smoothBoxRef.current.x,
-                            smoothBoxRef.current.y,
-                            smoothBoxRef.current.w,
-                            smoothBoxRef.current.h
-                        );
-
-                        if (!autoTimerRef.current) {
-                            autoTimerRef.current = setTimeout(() => {
-                                capture();
-                            }, 2000);
-                        }
-                    } else {
-                        clearTimeout(autoTimerRef.current);
-                        autoTimerRef.current = null;
-                    }
-                }
-
-                lastBoxRef.current = { x, y };
-            } else {
-                setFaceDetected(false);
-                clearTimeout(autoTimerRef.current);
-                autoTimerRef.current = null;
-            }
-        });
-
-        if (webcamRef?.current) {
-            cameraInstanceRef.current = new Camera(
+        if (webcamRef?.current && !cameraStream) {
+           const camera = new Camera(
                 webcamRef.current.video,
                 {
                     onFrame: async () => {
@@ -370,15 +209,125 @@ const FaceCapture = ({
                 }
             );
 
-            cameraInstanceRef.current.start();
+            camera.start();
+            setCameraStream(camera);
         }
 
         return () => {
-            if (cameraInstanceRef.current) {
-                cameraInstanceRef.current.stop();
-            }
+            stopCamera();
         };
-    }, [modal, previewMode, cameraReady]);
+    }, [modal,videoConstraints, cameraStream, webcamRef]);
+
+    const onResult = (results) => {
+        const canvas = canvasRef.current;
+        const ctx = canvas.getContext("2d");
+        const video = webcamRef.current?.video;
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        if (!canvas || !video) return;
+        if (results.detections.length > 0) {
+            const box = results.detections[0].boundingBox;
+
+            let x =
+                box.xCenter * canvas.width - (box.width * canvas.width) / 2;
+            let y =
+                box.yCenter * canvas.height - (box.height * canvas.height) / 2;
+            let w = box.width * canvas.width;
+            let h = box.height * canvas.height;
+            const paddingX = isMobile ? 0.9 : 0;
+            const paddingY = isMobile ? 0.45 : 0;
+            // Add padding
+            const padW = w * paddingX;
+            const padH = h * paddingY;
+
+            x -= padW / 2;
+            y -= padH / 2;
+            w += padW;
+            h += padH;
+
+            // Keep inside canvas bounds
+            x = Math.max(0, x);
+            y = Math.max(0, y);
+            w = Math.min(canvas.width - x, w);
+            h = Math.min(canvas.height - y, h);
+
+            const faceArea = w * h;
+            const minFaceArea = 25000;
+
+            setFaceDetected(true);
+            setFaceBox(box);
+
+            // Draw yellow box initially
+            ctx.lineWidth = 2;
+            ctx.strokeStyle = "#00ff88";
+            // Smooth animation
+            const lerp = (start, end, t) => start + (end - start) * t;
+
+            smoothBoxRef.current.x = lerp(smoothBoxRef.current.x, x, 0.2);
+            smoothBoxRef.current.y = lerp(smoothBoxRef.current.y, y, 0.2);
+            smoothBoxRef.current.w = lerp(smoothBoxRef.current.w, w, 0.2);
+            smoothBoxRef.current.h = lerp(smoothBoxRef.current.h, h, 0.2);
+
+            ctx.lineWidth = 2;
+            ctx.strokeStyle = faceDetected ? "#00ff88" : "#00ff88";
+            ctx.shadowColor = faceDetected ? "#00ff88" : "transparent";
+            ctx.shadowBlur = faceDetected ? 40 : 0;
+
+            ctx.strokeRect(
+                smoothBoxRef.current.x,
+                smoothBoxRef.current.y,
+                smoothBoxRef.current.w,
+                smoothBoxRef.current.h
+            );
+
+            const sharp = checkSharpness(video);
+
+            // Stability check
+            if (lastBoxRef.current) {
+                const dx = Math.abs(lastBoxRef.current.x - x);
+                const dy = Math.abs(lastBoxRef.current.y - y);
+                const isStable = dx < 10 && dy < 10;
+
+                if (isStable && sharp && faceArea > minFaceArea) {
+                    // Turn green when stable
+                    ctx.strokeStyle = "#00ff88";
+                    // Smooth animation
+                    const lerp = (start, end, t) => start + (end - start) * t;
+
+                    smoothBoxRef.current.x = lerp(smoothBoxRef.current.x, x, 0.2);
+                    smoothBoxRef.current.y = lerp(smoothBoxRef.current.y, y, 0.2);
+                    smoothBoxRef.current.w = lerp(smoothBoxRef.current.w, w, 0.2);
+                    smoothBoxRef.current.h = lerp(smoothBoxRef.current.h, h, 0.2);
+
+                    ctx.lineWidth = 3;
+                    ctx.strokeStyle = faceDetected ? "#00ff88" : "#ffcc00";
+                    ctx.shadowColor = faceDetected ? "#00ff88" : "transparent";
+                    ctx.shadowBlur = faceDetected ? 20 : 0;
+
+                    ctx.strokeRect(
+                        smoothBoxRef.current.x,
+                        smoothBoxRef.current.y,
+                        smoothBoxRef.current.w,
+                        smoothBoxRef.current.h
+                    );
+
+                    if (!autoTimerRef.current) {
+                        autoTimerRef.current = setTimeout(() => {
+                            capture();
+                        }, 2000);
+                    }
+                } else {
+                    clearTimeout(autoTimerRef.current);
+                    autoTimerRef.current = null;
+                }
+            }
+
+            lastBoxRef.current = { x, y };
+        } else {
+            setFaceDetected(false);
+            clearTimeout(autoTimerRef.current);
+            autoTimerRef.current = null;
+        }
+    };
 
     const convertFormat = (base64, type = "image/jpeg") => {
         return base64.replace(/^data:image\/[^;]+/, `data:${type}`);
@@ -431,17 +380,14 @@ const FaceCapture = ({
     };
 
     const switchCamera = () => {
-        // if (videoDevices.length < 2) return;
-
         setLoadingCamera(true);
-
-        const currentIndex = videoDevices.findIndex(
-            (device) => device.deviceId === selectedDeviceId
-        );
-
-        const nextIndex = (currentIndex + 1) % videoDevices.length;
-        setSelectedDeviceId(videoDevices[nextIndex].deviceId);
         setIsBackCamera((prev) => !prev);
+        setFacingMode((prevState) =>
+        prevState === FACING_MODE_USER
+            ? FACING_MODE_ENVIRONMENT
+            : FACING_MODE_USER
+        );
+        stopCamera(null);
         setLoadingCamera(false);
     };
 
@@ -500,7 +446,6 @@ const FaceCapture = ({
                         {!previewMode ? (
                             <>
                                 <Webcam
-                                    key={selectedDeviceId}
                                     ref={webcamRef}
                                     screenshotFormat="image/jpeg"
                                     videoConstraints={videoConstraints}
@@ -559,7 +504,6 @@ const FaceCapture = ({
                             faceDetected,
                             capture, isBackCamera,
                             loadingCamera,
-                            videoDevices,
                             switchCamera
                         }}
                     />

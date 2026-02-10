@@ -380,16 +380,25 @@ const FaceCapture = ({
     };
 
     const switchCamera = useCallback(() => {
-        // setLoadingCamera(true);
-        // setIsBackCamera((prev) => !prev);
-        setFacingMode((prevState) =>
-            prevState === FACING_MODE_USER
-            ? FACING_MODE_ENVIRONMENT
-            : FACING_MODE_USER
+        setLoadingCamera(true);
+
+        // Clear detection timers
+        clearTimeout(autoTimerRef.current);
+        autoTimerRef.current = null;
+
+        // Stop mediapipe camera
+        if (cameraStream) {
+            cameraStream.stop();
+            setCameraStream(null);
+        }
+
+        // Switch facing mode
+        setFacingMode((prev) =>
+            prev === FACING_MODE_USER
+                ? FACING_MODE_ENVIRONMENT
+                : FACING_MODE_USER
         );
-        // stopCamera(null);
-        // setLoadingCamera(false);
-    }, []);
+    }, [cameraStream]);
 
     return (
         <div className="face-page">
@@ -443,16 +452,28 @@ const FaceCapture = ({
 
                 <ModalBody className="text-center position-relative">
                     <div className={`camera-wrapper ${faceDetected ? "glow" : ""}`}>
+                        {loadingCamera && (
+                            <div className="camera-loader">
+                                Switching Camera...
+                            </div>
+                        )}
                         {!previewMode ? (
                             <>
                                 <Webcam
+                                    key={facingMode} // 🔥 VERY IMPORTANT
                                     className="webcam"
                                     audio={false}
                                     ref={webcamRef}
                                     screenshotFormat="image/jpeg"
-                                    videoConstraints={videoConstraints}
+                                    videoConstraints={{ facingMode }}
                                     screenshotQuality={1}
-                                    />
+                                    onUserMedia={() => {
+                                        setLoadingCamera(false);
+                                    }}
+                                    onUserMediaError={() => {
+                                        setLoadingCamera(false);
+                                    }}
+                                />
 
                                 <canvas
                                     ref={canvasRef}

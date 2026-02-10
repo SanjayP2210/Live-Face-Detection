@@ -71,6 +71,33 @@ const FaceCapture = ({
         getDevices();
     }, [modal]);
 
+    const applyAutoFocus = async () => {
+        const stream = webcamRef.current?.stream;
+        if (!stream) return;
+
+        const track = stream.getVideoTracks()[0];
+        if (!track) return;
+
+        const capabilities = track.getCapabilities();
+
+        if (capabilities.focusMode) {
+            try {
+                await track.applyConstraints({
+                    advanced: [{ focusMode: "continuous" }]
+                });
+            } catch (e) {
+                console.log("Focus mode not supported");
+            }
+        }
+
+        // Trigger focus refresh
+        try {
+            await track.applyConstraints({
+                advanced: [{ focusDistance: 0 }]
+            });
+        } catch (e) { }
+    };
+
     /* ---------------- MODAL TOGGLE ---------------- */
     const toggle = () => {
         setModal(!modal);
@@ -496,10 +523,13 @@ const FaceCapture = ({
                                     videoConstraints={{
                                         deviceId: videoDevices[currentDeviceIndex]?.deviceId
                                     }}
-                                    onUserMedia={() => setLoadingCamera(false)}
-                                    onUserMediaError={(err) => {
-                                        console.error("Camera Error:", err);
+                                    onUserMedia={async () => {
                                         setLoadingCamera(false);
+
+                                        // Wait a little for camera to stabilize
+                                        setTimeout(() => {
+                                            applyAutoFocus();
+                                        }, 300);
                                     }}
                                 />
 

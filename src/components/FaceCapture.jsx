@@ -42,11 +42,7 @@ const FaceCapture = ({
     const [isBackCamera, setIsBackCamera] = useState(false);
     const [loadingCamera, setLoadingCamera] = useState(false);
     const [facingMode, setFacingMode] = useState(FACING_MODE_USER);
-    const [cameraStream, setCameraStream] = useState(null);
-    
-    const videoConstraints = {
-        facingMode: facingMode,
-    }
+    const mediaPipeCameraRef = useRef(null);
 
     useEffect(() => {
         const checkScreen = () => {
@@ -171,17 +167,12 @@ const FaceCapture = ({
         setPreviewMode(true);
     };
 
-    const stopCamera = () => {
-        if (cameraStream) {
-        cameraStream.stop();
-        setCameraStream(null);
-        }
-    };
-    
     /* ---------------- FACE DETECTION ---------------- */
     useEffect(() => {
-        if(!modal) return;
-        if (!webcamRef?.current || cameraStream) return;
+        if (!modal) return;
+        if (!webcamRef.current) return;
+
+        setLoadingCamera(true);
 
         const faceDetection = new FaceDetection({
             locateFile: (file) =>
@@ -195,28 +186,33 @@ const FaceCapture = ({
 
         faceDetection.onResults(onResult);
 
-        if (webcamRef?.current && !cameraStream) {
-           const camera = new Camera(
-                webcamRef.current.video,
-                {
-                    onFrame: async () => {
-                        await faceDetection.send({
-                            image: webcamRef?.current?.video
-                        });
-                    },
-                    width: 480,
-                    height: 360
-                }
-            );
+        const startCamera = async () => {
+            if (!webcamRef.current?.video) return;
 
-            camera.start();
-            setCameraStream(camera);
-        }
+            const camera = new Camera(webcamRef.current.video, {
+                onFrame: async () => {
+                    await faceDetection.send({
+                        image: webcamRef.current.video
+                    });
+                },
+                width: 480,
+                height: 360
+            });
+
+            mediaPipeCameraRef.current = camera;
+            await camera.start();
+            setLoadingCamera(false);
+        };
+
+        startCamera();
 
         return () => {
-            stopCamera();
+            if (mediaPipeCameraRef.current) {
+                mediaPipeCameraRef.current.stop();
+                mediaPipeCameraRef.current = null;
+            }
         };
-    }, [modal,webcamRef,facingMode]);
+    }, [modal, facingMode]);
 
     const onResult = (results) => {
         const canvas = canvasRef.current;
@@ -380,25 +376,31 @@ const FaceCapture = ({
     };
 
     const switchCamera = useCallback(() => {
+        if (loadingCamera) return;
+
         setLoadingCamera(true);
 
-        // Clear detection timers
+        // Stop MediaPipe camera
+        if (mediaPipeCameraRef.current) {
+            mediaPipeCameraRef.current.stop();
+            mediaPipeCameraRef.current = null;
+        }
+
+        // Stop webcam tracks
+        const video = webcamRef.current?.video;
+        if (video?.srcObject) {
+            video.srcObject.getTracks().forEach(track => track.stop());
+        }
+
         clearTimeout(autoTimerRef.current);
         autoTimerRef.current = null;
 
-        // Stop mediapipe camera
-        if (cameraStream) {
-            cameraStream.stop();
-            setCameraStream(null);
-        }
-
-        // Switch facing mode
-        setFacingMode((prev) =>
+        setFacingMode(prev =>
             prev === FACING_MODE_USER
                 ? FACING_MODE_ENVIRONMENT
                 : FACING_MODE_USER
         );
-    }, [cameraStream]);
+    }, [loadingCamera]);
 
     return (
         <div className="face-page">
@@ -460,19 +462,13 @@ const FaceCapture = ({
                         {!previewMode ? (
                             <>
                                 <Webcam
-                                    key={facingMode} // 🔥 VERY IMPORTANT
-                                    className="webcam"
-                                    audio={false}
+                                    key={facingMode}
                                     ref={webcamRef}
+                                    audio={false}
                                     screenshotFormat="image/jpeg"
                                     videoConstraints={{ facingMode }}
-                                    screenshotQuality={1}
-                                    onUserMedia={() => {
-                                        setLoadingCamera(false);
-                                    }}
-                                    onUserMediaError={() => {
-                                        setLoadingCamera(false);
-                                    }}
+                                    onUserMedia={() => setLoadingCamera(false)}
+                                    onUserMediaError={() => setLoadingCamera(false)}
                                 />
 
                                 <canvas

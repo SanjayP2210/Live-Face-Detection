@@ -642,22 +642,31 @@ canvas {
   border-radius: 15px;
 }
 
+.camera-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
 
 .camera-wrapper {
   position: relative;
-  width: 480px;
-  height: 640px;
+  width: 100%;
+  max-width: 360px; /* controls size */
+  aspect-ratio: 3 / 4; /* keeps vertical ratio */
 }
 
 .webcam {
   width: 100%;
   height: 100%;
+  object-fit: cover;
   border-radius: 12px;
 }
 
 .overlay {
   position: absolute;
-  top: 0;
-  left: 0;
+  inset: 0;
+  width: 100%;
+  height: 100%;
   pointer-events: none;
 }

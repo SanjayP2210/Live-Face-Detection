@@ -7,9 +7,9 @@ const ActionButtons = ({
     confirmImage,
     toggle,
     faceDetected,
-    capture, isBackCamera,
-    loadingCamera, videoDevices,
-    switchCamera
+    capture,
+    loadingCamera,
+    switchCamera,
 }) => {
     return (
         <> {previewMode ? (
@@ -26,22 +26,19 @@ const ActionButtons = ({
                 <Button color="secondary" onClick={toggle}>
                     Close
                 </Button>
+                 <Button color="info" onClick={switchCamera}
+                disabled={loadingCamera}
+                >
+                    Switch Camera
+                    {/* {loadingCamera
+                        ? "Switching..."
+                        : isBackCamera
+                            ? "Use Front Camera"
+                            : "Use Back Camera"} */}
+                </Button>
 
                 {faceDetected && (
                     <>
-                        <Button
-                            color="info"
-                            onClick={switchCamera}
-                        // disabled={videoDevices.length < 2 || loadingCamera}
-                        >
-                            Switch Camera
-                            {/* {loadingCamera
-                                ? "Switching..."
-                                : isBackCamera
-                                    ? "Use Front Camera"
-                                    : "Use Back Camera"} */}
-                        </Button>
-
                         <Button color="primary" onClick={capture}>
                             Capture
                         </Button>

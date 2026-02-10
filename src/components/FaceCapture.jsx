@@ -40,6 +40,7 @@ const FaceCapture = ({
     const [selectedDeviceId, setSelectedDeviceId] = useState(null);
     const [isBackCamera, setIsBackCamera] = useState(false);
     const [loadingCamera, setLoadingCamera] = useState(false);
+    const [stream, setStream] = useState(null);
     const [videoConstraints, setVideoConstraints] = useState({
         facingMode: isBackCamera ? "environment" : "user",
         deviceId: selectedDeviceId ? { exact: selectedDeviceId } : undefined
@@ -47,11 +48,16 @@ const FaceCapture = ({
 
     const stopCameraStream = () => {
         if (webcamRef.current && webcamRef.current.video) {
-            const stream = webcamRef.current.video.srcObject;
-            if (stream) {
-                const tracks = stream.getTracks();
+            const videoStream = webcamRef.current.video.srcObject;
+            if (videoStream) {
+                const tracks = videoStream.getTracks();
                 tracks.forEach(track => track.stop());
             }
+        }
+        if (stream) {
+            const tracks = stream.getTracks();
+            tracks.forEach(track => track.stop());
+            setStream(null);
         }
     };
 
@@ -77,6 +83,7 @@ const FaceCapture = ({
                     console.log("webcamRef.current.video", webcamRef.current.video);
                     webcamRef.current.video.srcObject = stream;
                 }
+                setStream(stream);
                 callback(null, stream);
                 setVideoConstraints({
                     facingMode: isBackCamera ? "environment" : "user",
@@ -430,7 +437,7 @@ const FaceCapture = ({
             if (cameraInstanceRef.current) {
                 cameraInstanceRef.current.stop();
             }
-            // stopCameraStream();
+            stopCameraStream();
         };
     }, [modal, previewMode, cameraReady]);
 
@@ -485,8 +492,11 @@ const FaceCapture = ({
     };
 
     const switchCamera = () => {
+        // if (videoDevices.length < 2) return;
+        // Find the current camera
         setLoadingCamera(true);
         setCameraReady(false);
+        setStream(null);
         const currentIndex = videoDevices.findIndex(
             (device) => device.deviceId === selectedDeviceId,
         );
@@ -563,7 +573,7 @@ const FaceCapture = ({
                             <div className="spinner"></div>
                             <p>Loading Camera...</p>
                         </div>}
-                        {!previewMode ? (
+                        {!loadingCamera && !previewMode ? (
                             <>
                                 <Webcam
                                     ref={webcamRef}
@@ -580,6 +590,12 @@ const FaceCapture = ({
                                     onUserMedia={() => {
                                         setCameraReady(true);
                                         setLoadingCamera(false);  // 🔥 stop loader
+                                        if (stream) {
+                                            if (webcamRef.current) {
+                                                console.log("webcamRef.current.video", webcamRef.current.video);
+                                                webcamRef.current.video.srcObject = stream;
+                                            }
+                                        }
                                     }}
                                     onUserMediaError={(err) => {
                                         console.error(err);

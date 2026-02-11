@@ -44,7 +44,6 @@ const FaceCapture = ({
     const [facingMode, setFacingMode] = useState(FACING_MODE_USER);
     const mediaPipeCameraRef = useRef(null);
     const [webcamKey, setWebcamKey] = useState(0);
-    const [devices, setDevices] = useState([]);
     const [videoDevices, setVideoDevices] = useState([]);
     const [currentDeviceIndex, setCurrentDeviceIndex] = useState(0);
 
@@ -97,6 +96,50 @@ const FaceCapture = ({
             });
         } catch (e) { }
     };
+
+     const loadFaceAPI =async () =>{
+         const faceDetection = new FaceDetection({
+            locateFile: (file) =>
+                `https://cdn.jsdelivr.net/npm/@mediapipe/face_detection/${file}`
+        });
+
+        faceDetection.setOptions({
+            model: "short",
+            minDetectionConfidence: 0.7
+        });
+
+        await faceDetection.onResults(onResult);
+
+        const startCamera = async () => {
+            if (!webcamRef.current?.video) return;
+
+            const camera = new Camera(webcamRef.current.video, {
+                onFrame: async () => {
+                    await faceDetection.send({
+                        image: webcamRef.current.video
+                    });
+                },
+                width: 480,
+                height: 360
+            });
+
+            mediaPipeCameraRef.current = camera;
+            await camera.start();
+            setLoadingCamera(false);
+        };
+
+        startCamera();
+    }
+
+      useEffect(() => {
+      if (webcamKey) {
+        setTimeout(() => {
+           applyAutoFocus();
+           loadFaceAPI();
+        }, 300);
+      }
+    
+    }, [webcamKey])
 
     /* ---------------- MODAL TOGGLE ---------------- */
     const toggle = () => {
@@ -218,37 +261,7 @@ const FaceCapture = ({
 
         setLoadingCamera(true);
 
-        const faceDetection = new FaceDetection({
-            locateFile: (file) =>
-                `https://cdn.jsdelivr.net/npm/@mediapipe/face_detection/${file}`
-        });
-
-        faceDetection.setOptions({
-            model: "short",
-            minDetectionConfidence: 0.7
-        });
-
-        faceDetection.onResults(onResult);
-
-        const startCamera = async () => {
-            if (!webcamRef.current?.video) return;
-
-            const camera = new Camera(webcamRef.current.video, {
-                onFrame: async () => {
-                    await faceDetection.send({
-                        image: webcamRef.current.video
-                    });
-                },
-                width: 480,
-                height: 360
-            });
-
-            mediaPipeCameraRef.current = camera;
-            await camera.start();
-            setLoadingCamera(false);
-        };
-
-        startCamera();
+       loadFaceAPI();
 
         return () => {
             if (mediaPipeCameraRef.current) {
@@ -525,11 +538,6 @@ const FaceCapture = ({
                                     }}
                                     onUserMedia={async () => {
                                         setLoadingCamera(false);
-
-                                        // Wait a little for camera to stabilize
-                                        setTimeout(() => {
-                                            applyAutoFocus();
-                                        }, 300);
                                     }}
                                 />
 

@@ -448,11 +448,18 @@ const FaceCapture = ({
     useEffect(() => {
         if (!stream || !webcamRef.current) return;
 
-        const video = webcamRef.current?.video;
-        console.log("selectedDeviceId", selectedDeviceId);
-        video.onloadedmetadata = () => {
-            video.play();
-        };
+        if(stream){
+            const video = webcamRef.current?.video;
+            console.log("selectedDeviceId", selectedDeviceId);
+            console.log('stream',stream);
+            video.srcObject = stream
+            video.onloadedmetadata = () => {
+                video.play();
+                loadFaceAPI();
+            };
+        }else{
+            loadFaceAPI();
+        }
     }, [stream, selectedDeviceId, isBackCamera]);
 
     const onResult = (results) => {
@@ -620,34 +627,33 @@ const FaceCapture = ({
     const switchCamera = async () => {
         // Find the current camera
         setLoadingCamera(true);
-        stopStream();
+        await stopStream();
         // setCameraReady(false);
 
-        setTimeout(() => {
-            const currentIndex = videoDevices.findIndex(
-                (device) => device.deviceId === selectedDeviceId,
-            );
+        const currentIndex = videoDevices.findIndex(
+            (device) => device.deviceId === selectedDeviceId,
+        );
 
-            if (currentIndex !== -1) {
-                const nextIndex = (currentIndex + 1) % videoDevices.length;
-                cameraInit(videoDevices[nextIndex].deviceId, (err, stream) => {
-                    if (err) {
-                        console.error("Failed to initialize camera:", err);
-                    } else {
-                        console.log("Camera initialized successfully");
-                        setLoadingCamera(false);
-                    }
-                });
-                setSelectedDeviceId(videoDevices[nextIndex].deviceId);
-                setLoadingCamera(false);
-            }
-            setIsBackCamera((prevState) => !prevState);
-        }, 2000);
+        if (currentIndex !== -1) {
+            const nextIndex = (currentIndex + 1) % videoDevices.length;
+            cameraInit(videoDevices[nextIndex].deviceId, (err, stream) => {
+                if (err) {
+                    console.error("Failed to initialize camera:", err);
+                } else {
+                    console.log("Camera initialized successfully");
+                    setLoadingCamera(false);
+                }
+            });
+            setSelectedDeviceId(videoDevices[nextIndex].deviceId);
+            setLoadingCamera(false);
+        }
+        setIsBackCamera((prevState) => !prevState);
+        // setTimeout(() => {
+        // }, 2000);
     };
 
     const onUserMedia = () => {
         setLoadingCamera(false);
-        loadFaceAPI();
         alert('User Medaia Call');
     };
 

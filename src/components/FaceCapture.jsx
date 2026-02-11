@@ -14,7 +14,6 @@ import { Camera } from "@mediapipe/camera_utils";
 import "../App.css";
 import ActionButtons from "./ActionButtons";
 import DownloadButtons from "./DownloadButtons";
-import { useCallback } from "react";
 const FACING_MODE_USER = "user";
 const FACING_MODE_ENVIRONMENT = "environment";
 
@@ -27,7 +26,6 @@ const FaceCapture = ({
     const canvasRef = useRef(null);
     const autoTimerRef = useRef(null);
     const lastBoxRef = useRef(null);
-    const cameraInstanceRef = useRef(null);
     const smoothBoxRef = useRef({ x: 0, y: 0, w: 0, h: 0 });
     const [modal, setModal] = useState(false);
     const [capturedImage, setCapturedImage] = useState(null);
@@ -43,9 +41,177 @@ const FaceCapture = ({
     const [loadingCamera, setLoadingCamera] = useState(false);
     const [facingMode, setFacingMode] = useState(FACING_MODE_USER);
     const mediaPipeCameraRef = useRef(null);
-    const [webcamKey, setWebcamKey] = useState(0);
     const [videoDevices, setVideoDevices] = useState([]);
-    const [currentDeviceIndex, setCurrentDeviceIndex] = useState(0);
+    const [selectedDeviceId, setSelectedDeviceId] = useState(null);
+    const [stream, setStream] = useState(null);
+    const [videoConstraints, setVideoConstraints] = useState({
+        facingMode: "environment",
+        deviceId: selectedDeviceId ? { exact: selectedDeviceId } : undefined,
+    });
+
+    function getVideoDevices(callback) {
+        navigator.mediaDevices
+            .enumerateDevices()
+            .then(function (deviceInfos) {
+                const videoDevices = deviceInfos.filter(
+                    (device) => device.kind === "videoinput",
+                );
+                if (videoDevices.length === 0) {
+                    console.log("No video input devices found.");
+                    callback(null); // No video devices found
+                } else {
+                    callback(videoDevices); // Pass video devices list to callback
+                }
+            })
+            .catch(function (error) {
+                console.error("Error enumerating devices:", error);
+                callback(null); // Error occurred while enumerating devices
+            });
+    }
+
+    // Function to initialize the camera
+    const cameraInit =async (cameraId, callback) => {
+        // if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        //     console.error("getUserMedia not available");
+        //     callback("getUserMedia not available", null);
+        //     return;
+        // }
+
+        // const devices = await navigator.mediaDevices.enumerateDevices();
+        // const selectedDevice = devices.find(
+        //     (device) => device.deviceId === cameraId
+        // );
+
+        // const videoConstraints = {
+        //     video: {
+        //         deviceId: { exact: cameraId },
+        //     },
+        // };
+
+        // navigator.mediaDevices
+        //     .getUserMedia(videoConstraints)
+        //     .then(function (stream) {
+        //         console.log('stream',stream)
+        //         // Set the stream to the webcamRef
+        //         if (webcamRef.current) {
+        //             console.log("webcamRef.current.video", webcamRef.current.video);
+        //             webcamRef.current.video.srcObject = stream;
+        //             callback(null, stream);
+        //         }
+        //         setStream(stream);
+        //     })
+        //     .catch(function (err) {
+        //         console.error("Failed to access camera:", err);
+        //         callback(err, null); // Error occurred
+        //     });
+        try {
+         if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+            alert("Camera not supported in this browser");
+            return;
+        }
+
+        const devices = await navigator.mediaDevices.enumerateDevices();
+        const selectedDevice = devices.find(
+            (device) => device.deviceId === cameraId
+        );
+
+        const videoConstraints = {
+            video: {
+                deviceId: { exact: cameraId },
+            },
+        };
+
+        const stream = await navigator.mediaDevices.getUserMedia(videoConstraints);
+
+        if (webcamRef.current) {
+            webcamRef.current.video.srcObject = stream;
+        }
+
+        setStream(stream);
+
+        // 🔥 Detect Front or Back
+        let cameraType = "Camera";
+
+        if (selectedDevice?.label.toLowerCase().includes("front")) {
+            cameraType = "Front Camera";
+        } else if (
+            selectedDevice?.label.toLowerCase().includes("back") ||
+            selectedDevice?.label.toLowerCase().includes("rear") ||
+            selectedDevice?.label.toLowerCase().includes("environment")
+        ) {
+            cameraType = "Back Camera";
+        }
+
+        alert(`${cameraType} started successfully`);
+
+        callback(null, stream);
+
+    } catch (err) {
+        console.error("Failed to access camera:", err);
+        alert("Failed to start camera");
+        callback(err, null);
+    }
+    };
+
+    const detectAvailableCameras = async () => {
+        try {
+            navigator.mediaDevices
+                .getUserMedia({ video: true, audio: false })
+                .then(function (permissionStream) {
+                    permissionStream.getTracks().forEach((track) => track.stop());
+                    console.log("Initial permission granted.");
+
+                    // Get list of video devices
+                    getVideoDevices(function (videoDevices) {
+                        if (!videoDevices) {
+                            console.log("No video input devices found.");
+                            setLoadingCamera(false);
+                            return;
+                        }
+
+                        // Choose the default camera
+                        let defaultDevice =
+                            videoDevices.find((device) =>
+                                /environment/i.test(device.label),
+                            ) || videoDevices[0];
+
+                        if (!defaultDevice) {
+                            console.log("No default camera found.");
+                            return;
+                        }
+                        console.log("videoDevices", videoDevices);
+                        // Set available video devices
+                        setVideoDevices(videoDevices);
+                        setVideoConstraints({
+                            facingMode: "environment",
+                            deviceId: defaultDevice.deviceId
+                                ? { exact: defaultDevice.deviceId }
+                                : undefined,
+                        });
+
+                        // Set default camera to first available device
+                        setSelectedDeviceId(defaultDevice.deviceId);
+                        setLoadingCamera(false);
+
+                        // Initialize the camera with the selected device ID
+                        cameraInit(defaultDevice.deviceId, (err) => {
+                            if (err) {
+                                console.error("Failed to initialize camera:", err);
+                            } else {
+                                console.log("Camera initialized successfully");
+                            }
+                        });
+                    });
+                })
+                .catch(function (permError) {
+                    console.error("Error detecting cameras:", permError);
+                    setLoadingCamera(false);
+                });
+        } catch (err) {
+            console.error("Error detecting cameras:", err);
+            setLoadingCamera(false);
+        }
+    };
 
     useEffect(() => {
         const checkScreen = () => {
@@ -97,8 +263,8 @@ const FaceCapture = ({
         } catch (e) { }
     };
 
-     const loadFaceAPI =async () =>{
-         const faceDetection = new FaceDetection({
+    const loadFaceAPI = async () => {
+        const faceDetection = new FaceDetection({
             locateFile: (file) =>
                 `https://cdn.jsdelivr.net/npm/@mediapipe/face_detection/${file}`
         });
@@ -131,15 +297,15 @@ const FaceCapture = ({
         startCamera();
     }
 
-      useEffect(() => {
-      if (webcamKey) {
-        setTimeout(() => {
-           applyAutoFocus();
-           loadFaceAPI();
-        }, 300);
-      }
-    
-    }, [webcamKey])
+    // useEffect(() => {
+    //     if (webcamKey) {
+    //         setTimeout(() => {
+    //             applyAutoFocus();
+    //             loadFaceAPI();
+    //         }, 300);
+    //     }
+
+    // }, [webcamKey])
 
     /* ---------------- MODAL TOGGLE ---------------- */
     const toggle = () => {
@@ -254,22 +420,51 @@ const FaceCapture = ({
         setPreviewMode(true);
     };
 
+    const stopStream = () => {
+
+        // Stop webcam stream
+        if (webcamRef.current) {
+            const video = webcamRef.current.video;
+
+            if (video && video.srcObject) {
+                const tracks = video.srcObject.getTracks();
+                tracks.forEach(track => {
+                    track.stop();
+                });
+
+                video.srcObject = null;
+            }
+        }
+
+        setStream(null);
+    };
+
+
+    useEffect(() => {
+        if (capturedImage) return;
+        if (modal) {
+            detectAvailableCameras();
+            // toggleCamera();
+        } else {
+            stopStream();
+        }
+        return () => {
+            stopStream();
+        };
+    }, [modal]);
+
     /* ---------------- FACE DETECTION ---------------- */
     useEffect(() => {
-        if (!modal) return;
-        if (!webcamRef.current) return;
+        if (!stream || !webcamRef.current) return;
 
-        setLoadingCamera(true);
+        const video = webcamRef.current?.video;
+        console.log("selectedDeviceId", selectedDeviceId);
+        video.onloadedmetadata = () => {
+            video.play();
 
-       loadFaceAPI();
-
-        return () => {
-            if (mediaPipeCameraRef.current) {
-                mediaPipeCameraRef.current.stop();
-                mediaPipeCameraRef.current = null;
-            }
+            loadFaceAPI();
         };
-    }, [modal, facingMode, webcamRef.current]);
+    }, [stream, selectedDeviceId, webcamRef.current, isBackCamera]);
 
     const onResult = (results) => {
         const canvas = canvasRef.current;
@@ -413,6 +608,7 @@ const FaceCapture = ({
     const retake = () => {
         setPreviewMode(false);
         setCapturedImage(null);
+        detectAvailableCameras();
         clearTimeout(autoTimerRef.current);
         autoTimerRef.current = null;
     };
@@ -433,40 +629,36 @@ const FaceCapture = ({
     };
 
     const switchCamera = async () => {
-        if (loadingCamera || videoDevices.length < 2) return;
-
+        // Find the current camera
         setLoadingCamera(true);
+        // setCameraReady(false);
+        const currentIndex = videoDevices.findIndex(
+            (device) => device.deviceId === selectedDeviceId,
+        );
 
-        // Stop MediaPipe safely
-        if (mediaPipeCameraRef.current) {
-            try {
-                await mediaPipeCameraRef.current.stop();
-            } catch (e) { }
-            mediaPipeCameraRef.current = null;
-        }
-
-        // Stop webcam stream fully
-        const stream = webcamRef.current?.stream;
-        if (stream) {
-            stream.getTracks().forEach(track => track.stop());
-        }
-
-        // Remove srcObject (VERY IMPORTANT)
-        if (webcamRef.current?.video) {
-            webcamRef.current.video.srcObject = null;
-        }
-
-        // Wait for hardware release
-        setTimeout(() => {
-            setCurrentDeviceIndex(prev =>
-                prev === videoDevices.length - 1 ? 0 : prev + 1
-            );
-
-            // Force full remount
-            setWebcamKey(prev => prev + 1);
-
+        if (currentIndex !== -1) {
+            const nextIndex = (currentIndex + 1) % videoDevices.length;
+            cameraInit(videoDevices[nextIndex].deviceId, (err, stream) => {
+                if (err) {
+                    console.error("Failed to initialize camera:", err);
+                } else {
+                    console.log("Camera initialized successfully");
+                    setLoadingCamera(false);
+                }
+            });
+            setSelectedDeviceId(videoDevices[nextIndex].deviceId);
             setLoadingCamera(false);
-        }, 500); // 500ms is important for Android
+        }
+        setIsBackCamera((prevState) => !prevState);
+    };
+
+    const onUserMedia = () => {
+        setLoadingCamera(false);
+    };
+
+    const onUserMediaError = (error) => {
+        console.error("Camera error:", error);
+        setLoadingCamera(false);
     };
 
     return (
@@ -529,6 +721,24 @@ const FaceCapture = ({
                         {!previewMode ? (
                             <>
                                 <Webcam
+                                    className="web-cam"
+                                    ref={webcamRef}
+                                    muted
+                                    {...{
+                                        onUserMedia,
+                                        onUserMediaError,
+                                    }}
+                                    videoConstraints={{
+                                        ...videoConstraints,
+                                        deviceId: selectedDeviceId
+                                            ? { exact: selectedDeviceId }
+                                            : undefined,
+                                    }}
+                                    audio={false}
+                                    screenshotFormat="image/png"
+                                    mirrored={isBackCamera}
+                                />
+                                {/* <Webcam
                                     key={webcamKey}
                                     ref={webcamRef}
                                     audio={false}
@@ -539,7 +749,7 @@ const FaceCapture = ({
                                     onUserMedia={async () => {
                                         setLoadingCamera(false);
                                     }}
-                                />
+                                /> */}
 
                                 <canvas
                                     ref={canvasRef}
@@ -547,7 +757,9 @@ const FaceCapture = ({
                                         position: "absolute",
                                         inset: 0,
                                         width: "100%",
-                                        height: "100%"
+                                        height: "100%",
+                                        pointerEvents: "none",
+                                        transform: isBackCamera ? "scaleX(-1)" : "",
                                     }}
                                 />
                                 {faceDetected && (

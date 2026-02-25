@@ -471,7 +471,7 @@ const FaceCapture = ({
         setShowBase64(false);
     };
 
-    const isCameraLoadig = isSwitching || loading || !cameraReady;
+    const isCameraLoadig = !cameraError && (isSwitching || loading || !cameraReady);
 
     return (
         <>
@@ -549,7 +549,12 @@ const FaceCapture = ({
                             <CameraLoader msg={isSwitching ? 'Switching' : 'Initializing'} />
                         </div>
                     )}
-                    {cameraError && <CameraError error={cameraError} />}
+                    {cameraError && 
+                    <div className="emirate-loader">
+                            {" "}
+                    <CameraError error={cameraError} />
+                    </div>
+                    }
                     {!previewMode && !cameraError && !photo && (
                         <div className="camera-video-container"
                             style={{

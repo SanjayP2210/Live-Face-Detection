@@ -13,7 +13,12 @@ import CameraLoader from "./CameraLoader";
 import DownloadButtons from "./DownloadButtons";
 import CameraActionButtons from './CameraActionButtons';
 import ImageDisplay from './ImageDisplay'
+const FACING_MODE_USER = "user";
+const FACING_MODE_ENVIRONMENT = "environment";
 
+const videoConstraints = {
+    facingMode: FACING_MODE_USER
+};
 const FaceCapture = ({
     image,
     onImageChange,
@@ -25,6 +30,7 @@ const FaceCapture = ({
     isUserCamera = false,
     onCapture,
 }) => {
+    const [facingMode, setFacingMode] = useState(FACING_MODE_USER);
     const webcamRef = useRef(null);
     const canvasRef = useRef(null);
     const lastBoxRef = useRef(null);
@@ -58,7 +64,10 @@ const FaceCapture = ({
         checkScreen();
         window.addEventListener("resize", checkScreen);
 
-        return () => window.removeEventListener("resize", checkScreen);
+        return () => {
+            window.removeEventListener("resize", checkScreen);
+            setFacingMode(FACING_MODE_USER);
+        }
     }, []);
 
 
@@ -122,19 +131,13 @@ const FaceCapture = ({
         setIsSwitching(true);
 
         setTimeout(() => {
-            if (isMobile) {
-                // ⭐ MOBILE → toggle facingMode
-                setIsBackCamera((prev) => !prev);
-            } else {
-                // ⭐ DESKTOP → rotate deviceId
-                if (!videoDevices.length) return;
-                const currentIndex = videoDevices.findIndex(
-                    (d) => d.deviceId === selectedDeviceId
-                );
-                const nextIndex = (currentIndex + 1) % videoDevices.length;
-                setSelectedDeviceId(videoDevices[nextIndex].deviceId);
-            }
-
+            setFacingMode(
+                prevState =>
+                    prevState === FACING_MODE_USER
+                        ? FACING_MODE_ENVIRONMENT
+                        : FACING_MODE_USER
+            );
+            setIsBackCamera((prev) => !prev);
             setWebcamKey((prev) => prev + 1);
             setFade(false);
         }, 300);
@@ -318,13 +321,14 @@ const FaceCapture = ({
 
     const handleCloseModal = () => {
         setModalOpen(false);
+        setFacingMode(FACING_MODE_USER);
     };
 
     const handleUserMedia = () => {
         setCameraReady(true);
         setLoading(false);
         setIsSwitching(false);
-        alert('User Media Call');
+        alert(`User Media Call ${facingMode}`);
     };
 
     const handleUserMediaError = (error) => {
@@ -348,6 +352,7 @@ const FaceCapture = ({
         setCameraReady(false)
         setFullImage(null);
         setCropImage(null);
+        setFacingMode(FACING_MODE_USER);
         // stopStream();
     };
 
@@ -386,6 +391,7 @@ const FaceCapture = ({
     const confirmImage = () => {
         setModalOpen(false);
         setPreviewMode(false);
+        setFacingMode(FACING_MODE_USER);
         onCapture({
             cropImage,
             fullImage
@@ -510,19 +516,19 @@ const FaceCapture = ({
         }
     };
 
-    const videoConstraints = isMobile ? {
-        facingMode: isBackCamera ? "environment" : "user"
-    } : {
-        facingMode: isMobile ? (isBackCamera ? "environment" : "user") : undefined,
-        deviceId: !isMobile && selectedDeviceId ? { ideal: selectedDeviceId } : undefined,
-        width: { ideal: 1280 },
-        height: { ideal: 720 },
-    }
+    // const videoConstraints = isMobile ? {
+    //     facingMode: isBackCamera ? "environment" : "user"
+    // } : {
+    //     facingMode: isMobile ? (isBackCamera ? "environment" : "user") : undefined,
+    //     deviceId: !isMobile && selectedDeviceId ? { ideal: selectedDeviceId } : undefined,
+    //     width: { ideal: 1280 },
+    //     height: { ideal: 720 },
+    // }
 
-    console.log('videoConstraints', videoConstraints);
+    // console.log('videoConstraints', videoConstraints);
 
     // alert('Is Mobile Device',isMobile);
-    const isCameraLoadig = isSwitching || loading || !cameraReady;
+    const isCameraLoadig = !cameraError && (isSwitching || loading || !cameraReady);
     // const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
     return (
         <>
@@ -589,7 +595,7 @@ const FaceCapture = ({
                         <IconCircleXFilled
                             size={40}
                             color={photo ? "#666666b3" : "#fff"}
-                            onClick={() => setModalOpen(false)}
+                            onClick={handleCloseModal}
                         />
                     </div>
 
@@ -600,7 +606,7 @@ const FaceCapture = ({
                             <CameraLoader msg={isSwitching ? 'Switching' : 'Initializing'} />
                         </div>
                     )}
-                    {cameraError && <CameraError error={cameraError} />}
+                    {cameraError && <div className="emirate-loader"><CameraError error={cameraError} /></div>}
                     {!previewMode && !cameraError && !photo && (
                         <div className="camera-video-container"
                             style={{
@@ -611,9 +617,10 @@ const FaceCapture = ({
                                 key={webcamKey}
                                 ref={webcamRef}
                                 audio={false}
-                                screenshotQuality={1}
+                                // screenshotQuality={1}
                                 videoConstraints={{
-                                    facingMode: isBackCamera ? "environment" : "user"
+                                    ...videoConstraints,
+                                    facingMode
                                 }}
                                 onUserMedia={handleUserMedia}
                                 onUserMediaError={handleUserMediaError}

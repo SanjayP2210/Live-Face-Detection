@@ -14,7 +14,6 @@ function App() {
       enableBase64Viewer={true}
       onCapture={handleCapture}
     />
-      {/* <WebcamCapture/> */ }
   );
 }
 

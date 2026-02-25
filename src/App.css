@@ -395,9 +395,9 @@ canvas {
   }
 
   .modal-body {
-    display: flex;
+    /* display: flex;
     justify-content: center;
-    align-items: center;
+    align-items: center; */
   }
 
   .preview-image {
@@ -713,6 +713,7 @@ canvas {
   height: 100%;
   pointer-events: none;
   object-fit: contain;
+  inset:0
 }
 
 .camera-capture-action-button {
@@ -795,6 +796,17 @@ canvas {
 @media (max-width: 768px) {
   .emirate-loader {
     font-size: 16px;
-    height: 200px;
+    /* height: 100dvh; */
   }
+.camera-video-tag {
+  /* width: 100%; */
+  /* height: 100%; */
+  object-fit: cover;
+}
+.camera-canvas {
+  width: 100%;
+  height: 100%;
+  position: absolute;
+  inset: 0;
+}
 }

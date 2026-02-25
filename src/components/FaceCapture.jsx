@@ -85,53 +85,47 @@ const FaceCapture = ({
     // -----------------------------
     // SWITCH CAMERA (SMOOTH)
     // -----------------------------
+    // const handleSwitchCamera = () => {
+    //     if (!videoDevices.length) return;
+    //     setFade(true);
+    //     setCameraReady(false);
+    //     setShowScanner(false);
+    //     setIsSwitching(true);
+    //     const currentIndex = videoDevices.findIndex(
+    //         (device) => device.deviceId === selectedDeviceId,
+    //     );
+    //     const nextIndex = (currentIndex + 1) % videoDevices.length;
+    //     setTimeout(() => {
+    //         setSelectedDeviceId(videoDevices[nextIndex].deviceId);
+    //         // 🔥 Force Webcam re-mount (VERY IMPORTANT)
+    //         setWebcamKey((prev) => prev + 1);
+    //         setFade(false);
+    //         setIsBackCamera((prevState) => !prevState);
+    //     }, 300);
+    // };
     const handleSwitchCamera = () => {
-        if (!videoDevices.length) return;
         setFade(true);
         setCameraReady(false);
         setShowScanner(false);
         setIsSwitching(true);
-        const currentIndex = videoDevices.findIndex(
-            (device) => device.deviceId === selectedDeviceId,
-        );
-        const nextIndex = (currentIndex + 1) % videoDevices.length;
+
         setTimeout(() => {
-            setSelectedDeviceId(videoDevices[nextIndex].deviceId);
-            // 🔥 Force Webcam re-mount (VERY IMPORTANT)
+            if (isMobile) {
+                // ⭐ MOBILE → toggle facingMode
+                setIsBackCamera((prev) => !prev);
+            } else {
+                // ⭐ DESKTOP → rotate deviceId
+                if (!videoDevices.length) return;
+                const currentIndex = videoDevices.findIndex(
+                    (d) => d.deviceId === selectedDeviceId
+                );
+                const nextIndex = (currentIndex + 1) % videoDevices.length;
+                setSelectedDeviceId(videoDevices[nextIndex].deviceId);
+            }
+
             setWebcamKey((prev) => prev + 1);
             setFade(false);
-            setIsBackCamera((prevState) => !prevState);
         }, 300);
-    };
-
-    const checkSharpness = (video) => {
-        if (!video) return false;
-
-        const tempCanvas = document.createElement("canvas");
-        tempCanvas.width = video.videoWidth;
-        tempCanvas.height = video.videoHeight;
-        const ctx = tempCanvas.getContext("2d");
-        ctx.drawImage(video, 0, 0);
-
-        const imageData = ctx.getImageData(
-            0,
-            0,
-            tempCanvas.width,
-            tempCanvas.height
-        );
-        const data = imageData.data;
-
-        let sum = 0;
-        for (let i = 0; i < data.length; i += 4) {
-            sum += data[i];
-        }
-        const avg = sum / (data.length / 4);
-
-        if (avg < 80) {
-            return false;
-        } else {
-            return true;
-        }
     };
 
     // -----------------------------
@@ -178,40 +172,40 @@ const FaceCapture = ({
                 ctx.clearRect(0, 0, canvas.width, canvas.height);
 
                 if (results.detections?.length > 0) {
-                const box = results.detections[0].boundingBox;
-                lastBoxRef.current = box;
-                setFaceDetected(true);
+                    const box = results.detections[0].boundingBox;
+                    lastBoxRef.current = box;
+                    setFaceDetected(true);
 
-                const x = box.xCenter * canvas.width - (box.width * canvas.width) / 2;
-                const y =
-                    box.yCenter * canvas.height - (box.height * canvas.height) / 2;
-                const w = box.width * canvas.width;
-                const h = box.height * canvas.height;
+                    const x = box.xCenter * canvas.width - (box.width * canvas.width) / 2;
+                    const y =
+                        box.yCenter * canvas.height - (box.height * canvas.height) / 2;
+                    const w = box.width * canvas.width;
+                    const h = box.height * canvas.height;
 
-                ctx.strokeStyle = "lime";
-                ctx.lineWidth = 3;
-                 const lerp = (start, end, t) => start + (end - start) * t;
+                    ctx.strokeStyle = "lime";
+                    ctx.lineWidth = 3;
+                    const lerp = (start, end, t) => start + (end - start) * t;
 
-                smoothBoxRef.current.x = lerp(smoothBoxRef.current.x, x, 0.2);
-                smoothBoxRef.current.y = lerp(smoothBoxRef.current.y, y, 0.2);
-                smoothBoxRef.current.w = lerp(smoothBoxRef.current.w, w, 0.2);
-                smoothBoxRef.current.h = lerp(smoothBoxRef.current.h, h, 0.2);
+                    smoothBoxRef.current.x = lerp(smoothBoxRef.current.x, x, 0.2);
+                    smoothBoxRef.current.y = lerp(smoothBoxRef.current.y, y, 0.2);
+                    smoothBoxRef.current.w = lerp(smoothBoxRef.current.w, w, 0.2);
+                    smoothBoxRef.current.h = lerp(smoothBoxRef.current.h, h, 0.2);
 
-                ctx.lineWidth = 2;
-                ctx.strokeStyle = faceDetected ? "#00ff88" : "#00ff88";
-                ctx.shadowColor = faceDetected ? "#00ff88" : "transparent";
-                ctx.shadowBlur = faceDetected ? 40 : 0;
+                    ctx.lineWidth = 2;
+                    ctx.strokeStyle = faceDetected ? "#00ff88" : "#00ff88";
+                    ctx.shadowColor = faceDetected ? "#00ff88" : "transparent";
+                    ctx.shadowBlur = faceDetected ? 40 : 0;
 
-                ctx.strokeRect(
-                    smoothBoxRef.current.x,
-                    smoothBoxRef.current.y,
-                    smoothBoxRef.current.w,
-                    smoothBoxRef.current.h
-                );
-                // ctx.strokeRect(x, y, w, h);
+                    ctx.strokeRect(
+                        smoothBoxRef.current.x,
+                        smoothBoxRef.current.y,
+                        smoothBoxRef.current.w,
+                        smoothBoxRef.current.h
+                    );
+                    // ctx.strokeRect(x, y, w, h);
                 } else {
-                setFaceDetected(false);
-                lastBoxRef.current = null;
+                    setFaceDetected(false);
+                    lastBoxRef.current = null;
                 }
             });
 
@@ -296,42 +290,12 @@ const FaceCapture = ({
         setCapturedImage(faceImageBase64);
         setCropImage(faceImageBase64);
         setPreviewMode(true);
-        
+
         const screenshot = webcamRef.current.getScreenshot();
         if (!screenshot) return;
 
         setFullImage(screenshot);
     }, [webcamRef, isBackCamera]);
-
-    /* ---------------- CAPTURE ---------------- */
-    const capture = async () => {
-        if (!webcamRef.current) return;
-
-        // Flash animation
-        const flash = document.createElement("div");
-        flash.className = "capture-flash";
-        document.querySelector(".camera-wrapper")?.appendChild(flash);
-
-        setTimeout(() => flash.remove(), 300);
-
-        const screenshot = webcamRef.current.getScreenshot();
-        if (!screenshot) return;
-
-        setFullImage(screenshot);
-
-        const cropped = await cropFace(screenshot);
-        setCapturedImage(cropped);
-        setCropImage(cropped);
-
-        setPreviewMode(true);
-    };
-
-    const handleOk = () => {
-        if (photo && onImageChange) {
-            onImageChange(photo);
-            setModalOpen(false);
-        }
-    };
 
     // -----------------------------
     // LIFECYCLE
@@ -357,57 +321,6 @@ const FaceCapture = ({
         setLoading(false);
     };
 
-    const handleRetake = () => {
-        setPhoto(null);
-        setCameraReady(false);
-    };
-
-    /* ---------------- AUTO ZOOM CROP ---------------- */
-    const cropFace = (base64) => {
-        const img = new Image();
-        img.src = base64;
-
-        return new Promise((resolve) => {
-            img.onload = () => {
-                const canvas = document.createElement("canvas");
-                const ctx = canvas.getContext("2d");
-                const padding = 80;
-
-                const x =
-                    faceBox.xCenter * img.width -
-                    (faceBox.width * img.width) / 2 -
-                    padding;
-                const y =
-                    faceBox.yCenter * img.height -
-                    (faceBox.height * img.height) / 2 -
-                    padding;
-
-                const w = faceBox.width * img.width + padding * 2;
-                const h = faceBox.height * img.height + padding * 2;
-
-                // canvas.width = w;
-                // canvas.height = h;
-                const size = Math.max(w, h);
-                canvas.width = size;
-                canvas.height = size;
-
-                ctx.drawImage(
-                    img,
-                    x,
-                    y,
-                    w,
-                    h,
-                    (size - w) / 2,
-                    (size - h) / 2,
-                    w,
-                    h
-                );
-
-                // ctx.drawImage(img, x, y, w, h, 0, 0, w, h);
-                resolve(canvas.toDataURL("image/jpeg"));
-            };
-        });
-    };
     const convertFormat = (base64, type = "image/jpeg") => {
         return base64.replace(/^data:image\/[^;]+/, `data:${type}`);
     };
@@ -471,8 +384,120 @@ const FaceCapture = ({
         setShowBase64(false);
     };
 
-    const isCameraLoadig = isSwitching || loading || !cameraReady;
+    /* ---------------- AUTO ZOOM CROP ---------------- */
+    const cropFace = (base64) => {
+        const img = new Image();
+        img.src = base64;
 
+        return new Promise((resolve) => {
+            img.onload = () => {
+                const canvas = document.createElement("canvas");
+                const ctx = canvas.getContext("2d");
+                const padding = 80;
+
+                const x =
+                    faceBox.xCenter * img.width -
+                    (faceBox.width * img.width) / 2 -
+                    padding;
+                const y =
+                    faceBox.yCenter * img.height -
+                    (faceBox.height * img.height) / 2 -
+                    padding;
+
+                const w = faceBox.width * img.width + padding * 2;
+                const h = faceBox.height * img.height + padding * 2;
+
+                // canvas.width = w;
+                // canvas.height = h;
+                const size = Math.max(w, h);
+                canvas.width = size;
+                canvas.height = size;
+
+                ctx.drawImage(
+                    img,
+                    x,
+                    y,
+                    w,
+                    h,
+                    (size - w) / 2,
+                    (size - h) / 2,
+                    w,
+                    h
+                );
+
+                // ctx.drawImage(img, x, y, w, h, 0, 0, w, h);
+                resolve(canvas.toDataURL("image/jpeg"));
+            };
+        });
+    };
+
+    const checkSharpness = (video) => {
+        if (!video) return false;
+
+        const tempCanvas = document.createElement("canvas");
+        tempCanvas.width = video.videoWidth;
+        tempCanvas.height = video.videoHeight;
+        const ctx = tempCanvas.getContext("2d");
+        ctx.drawImage(video, 0, 0);
+
+        const imageData = ctx.getImageData(
+            0,
+            0,
+            tempCanvas.width,
+            tempCanvas.height
+        );
+        const data = imageData.data;
+
+        let sum = 0;
+        for (let i = 0; i < data.length; i += 4) {
+            sum += data[i];
+        }
+        const avg = sum / (data.length / 4);
+
+        if (avg < 80) {
+            return false;
+        } else {
+            return true;
+        }
+    };
+
+    const handleRetake = () => {
+        setPhoto(null);
+        setCameraReady(false);
+    };
+
+    /* ---------------- CAPTURE ---------------- */
+    const capture = async () => {
+        if (!webcamRef.current) return;
+
+        // Flash animation
+        const flash = document.createElement("div");
+        flash.className = "capture-flash";
+        document.querySelector(".camera-wrapper")?.appendChild(flash);
+
+        setTimeout(() => flash.remove(), 300);
+
+        const screenshot = webcamRef.current.getScreenshot();
+        if (!screenshot) return;
+
+        setFullImage(screenshot);
+
+        const cropped = await cropFace(screenshot);
+        setCapturedImage(cropped);
+        setCropImage(cropped);
+
+        setPreviewMode(true);
+    };
+
+    const handleOk = () => {
+        if (photo && onImageChange) {
+            onImageChange(photo);
+            setModalOpen(false);
+        }
+    };
+
+    const isCameraLoadig = isSwitching || loading || !cameraReady;
+    const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
     return (
         <>
             <div className="face-page">
@@ -562,13 +587,17 @@ const FaceCapture = ({
                                 audio={false}
                                 screenshotQuality={1}
                                 videoConstraints={{
-                                    deviceId: selectedDeviceId
-                                        ? { exact: selectedDeviceId }
-                                        : undefined,
-
+                                    ...(isMobile
+                                        ? {
+                                            facingMode: isBackCamera ? { ideal: "environment" } : "user",
+                                        }
+                                        : {
+                                            deviceId: selectedDeviceId
+                                                ? { ideal: selectedDeviceId }   // ⭐ change exact → ideal
+                                                : undefined,
+                                        }),
                                     width: { ideal: 1920 },
                                     height: { ideal: 1080 },
-                                    frameRate: { ideal: 30 },
                                 }}
                                 onUserMedia={handleUserMedia}
                                 onUserMediaError={handleUserMediaError}

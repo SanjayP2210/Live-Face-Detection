@@ -126,6 +126,7 @@ const MobileCamera = ({
     const handleSwitchCamera = () => {
         setFade(true);
         setCameraReady(false);
+        setCameraError(null);
         setShowScanner(false);
         setIsSwitching(true);
 
@@ -328,6 +329,7 @@ const MobileCamera = ({
         setCameraReady(true);
         setLoading(false);
         setIsSwitching(false);
+        setCameraError(null);
         alert(`User Media Call ${facingMode}`);
     };
 
@@ -349,7 +351,8 @@ const MobileCamera = ({
         setFaceDetected(false);
         setPreviewMode(false);
         autoTimerRef.current = null;
-        setCameraReady(false)
+        setCameraReady(false);
+        setCameraError(null);
         setFullImage(null);
         setCropImage(null);
         setFacingMode(FACING_MODE_USER);
@@ -625,7 +628,7 @@ const MobileCamera = ({
                                 }}
                                 onUserMedia={handleUserMedia}
                                 onUserMediaError={handleUserMediaError}
-                                mirrored={!isBackCamera}
+                                // mirrored={!isBackCamera}
                                 className="camera-video-tag"
                                 style={{
                                     opacity: fade ? 0 : 1,

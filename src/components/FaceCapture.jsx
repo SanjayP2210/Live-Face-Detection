@@ -587,17 +587,10 @@ const FaceCapture = ({
                                 audio={false}
                                 screenshotQuality={1}
                                 videoConstraints={{
-                                    ...(isMobile
-                                        ? {
-                                            facingMode: isBackCamera ? { ideal: "environment" } : "user",
-                                        }
-                                        : {
-                                            deviceId: selectedDeviceId
-                                                ? { ideal: selectedDeviceId }   // ⭐ change exact → ideal
-                                                : undefined,
-                                        }),
-                                    width: { ideal: 1920 },
-                                    height: { ideal: 1080 },
+                                    facingMode: isMobile ? (isBackCamera ? "environment" : "user") : undefined,
+                                    deviceId: !isMobile && selectedDeviceId ? { ideal: selectedDeviceId } : undefined,
+                                    width: { ideal: 1280 },
+                                    height: { ideal: 720 },
                                 }}
                                 onUserMedia={handleUserMedia}
                                 onUserMediaError={handleUserMediaError}

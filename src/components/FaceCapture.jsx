@@ -1,27 +1,25 @@
 import { FaceDetection } from "@mediapipe/face_detection";
 import { IconCircleXFilled } from "@tabler/icons-react";
 import { memo, useCallback, useEffect, useRef, useState } from "react";
-import Webcam from "react-webcam";
 import {
     Button, Card,
-    CardBody, CardTitle, Modal, ModalBody
+    CardBody,
+    Modal, ModalBody
 } from "reactstrap";
 import "../App.css";
-import ActionButtons from "./ActionButtons";
+import CameraActionButtons from './CameraActionButtons';
 import { CameraError } from "./CameraError";
 import CameraLoader from "./CameraLoader";
+import DesktopCamera from "./DesktopCamera";
 import DownloadButtons from "./DownloadButtons";
-import CameraActionButtons from './CameraActionButtons';
-import ImageDisplay from './ImageDisplay'
+import ImageDisplay from './ImageDisplay';
+import MobileCamera from "./MobileCamera";
+const FACING_MODE_USER = "user";
+const FACING_MODE_ENVIRONMENT = "environment";
 
 const FaceCapture = ({
-    image,
-    onImageChange,
     enableDownload = true,
     enableBase64Viewer = true,
-    //   modalOpen,
-    //   setModalOpen,
-    title,
     isUserCamera = false,
     onCapture,
 }) => {
@@ -30,10 +28,10 @@ const FaceCapture = ({
     const lastBoxRef = useRef(null);
     const autoTimerRef = useRef(null);
     const smoothBoxRef = useRef({ x: 0, y: 0, w: 0, h: 0 });
+    const [facingMode, setFacingMode] = useState(FACING_MODE_USER);
     const [modalOpen, setModalOpen] = useState(false);
     const [cameraReady, setCameraReady] = useState(false);
     const [cameraError, setCameraError] = useState(null);
-    const [photo, setPhoto] = useState(null);
     const [loading, setLoading] = useState(true);
     const [faceDetected, setFaceDetected] = useState(true);
     const [videoDevices, setVideoDevices] = useState([]);
@@ -45,10 +43,21 @@ const FaceCapture = ({
     const [isSwitching, setIsSwitching] = useState(false);
     const [capturedImage, setCapturedImage] = useState(null);
     const [previewMode, setPreviewMode] = useState(false);
-    const [faceBox, setFaceBox] = useState(null);
     const [fullImage, setFullImage] = useState(null);
     const [cropImage, setCropImage] = useState(null);
     const [showBase64, setShowBase64] = useState(false);
+    const [isMobile, setIsMobile] = useState(false);
+
+    useEffect(() => {
+        const checkScreen = () => {
+            setIsMobile(window.innerWidth <= 768);
+        };
+
+        checkScreen();
+        window.addEventListener("resize", checkScreen);
+
+        return () => window.removeEventListener("resize", checkScreen);
+    }, []);
 
     // -----------------------------
     // DETECT CAMERAS (HD SAFE)
@@ -91,47 +100,36 @@ const FaceCapture = ({
         setCameraReady(false);
         setShowScanner(false);
         setIsSwitching(true);
-        const currentIndex = videoDevices.findIndex(
-            (device) => device.deviceId === selectedDeviceId,
-        );
-        const nextIndex = (currentIndex + 1) % videoDevices.length;
-        setTimeout(() => {
-            setSelectedDeviceId(videoDevices[nextIndex].deviceId);
-            // 🔥 Force Webcam re-mount (VERY IMPORTANT)
-            setWebcamKey((prev) => prev + 1);
-            setFade(false);
-            setIsBackCamera((prevState) => !prevState);
-        }, 300);
+        if (isMobile) {
+            handleMobileSwitchCamera();
+        } else {
+            const currentIndex = videoDevices.findIndex(
+                (device) => device.deviceId === selectedDeviceId,
+            );
+            const nextIndex = (currentIndex + 1) % videoDevices.length;
+            setTimeout(() => {
+                setSelectedDeviceId(videoDevices[nextIndex].deviceId);
+                // 🔥 Force Webcam re-mount (VERY IMPORTANT)
+                setWebcamKey((prev) => prev + 1);
+                setFade(false);
+                setIsBackCamera((prevState) => !prevState);
+            }, 300);
+        }
     };
 
-    const checkSharpness = (video) => {
-        if (!video) return false;
+    const handleMobileSwitchCamera = () => {
+        setTimeout(() => {
+            setFacingMode(
+                prevState =>
+                    prevState === FACING_MODE_USER
+                        ? FACING_MODE_ENVIRONMENT
+                        : FACING_MODE_USER
+            );
+            setIsBackCamera((prev) => !prev);
+            setWebcamKey((prev) => prev + 1);
+            setFade(false);
+        }, 300);
 
-        const tempCanvas = document.createElement("canvas");
-        tempCanvas.width = video.videoWidth;
-        tempCanvas.height = video.videoHeight;
-        const ctx = tempCanvas.getContext("2d");
-        ctx.drawImage(video, 0, 0);
-
-        const imageData = ctx.getImageData(
-            0,
-            0,
-            tempCanvas.width,
-            tempCanvas.height
-        );
-        const data = imageData.data;
-
-        let sum = 0;
-        for (let i = 0; i < data.length; i += 4) {
-            sum += data[i];
-        }
-        const avg = sum / (data.length / 4);
-
-        if (avg < 80) {
-            return false;
-        } else {
-            return true;
-        }
     };
 
     // -----------------------------
@@ -178,40 +176,40 @@ const FaceCapture = ({
                 ctx.clearRect(0, 0, canvas.width, canvas.height);
 
                 if (results.detections?.length > 0) {
-                const box = results.detections[0].boundingBox;
-                lastBoxRef.current = box;
-                setFaceDetected(true);
+                    const box = results.detections[0].boundingBox;
+                    lastBoxRef.current = box;
+                    setFaceDetected(true);
 
-                const x = box.xCenter * canvas.width - (box.width * canvas.width) / 2;
-                const y =
-                    box.yCenter * canvas.height - (box.height * canvas.height) / 2;
-                const w = box.width * canvas.width;
-                const h = box.height * canvas.height;
+                    const x = box.xCenter * canvas.width - (box.width * canvas.width) / 2;
+                    const y =
+                        box.yCenter * canvas.height - (box.height * canvas.height) / 2;
+                    const w = box.width * canvas.width;
+                    const h = box.height * canvas.height;
 
-                ctx.strokeStyle = "lime";
-                ctx.lineWidth = 3;
-                 const lerp = (start, end, t) => start + (end - start) * t;
+                    ctx.strokeStyle = "lime";
+                    ctx.lineWidth = 3;
+                    const lerp = (start, end, t) => start + (end - start) * t;
 
-                smoothBoxRef.current.x = lerp(smoothBoxRef.current.x, x, 0.2);
-                smoothBoxRef.current.y = lerp(smoothBoxRef.current.y, y, 0.2);
-                smoothBoxRef.current.w = lerp(smoothBoxRef.current.w, w, 0.2);
-                smoothBoxRef.current.h = lerp(smoothBoxRef.current.h, h, 0.2);
+                    smoothBoxRef.current.x = lerp(smoothBoxRef.current.x, x, 0.2);
+                    smoothBoxRef.current.y = lerp(smoothBoxRef.current.y, y, 0.2);
+                    smoothBoxRef.current.w = lerp(smoothBoxRef.current.w, w, 0.2);
+                    smoothBoxRef.current.h = lerp(smoothBoxRef.current.h, h, 0.2);
 
-                ctx.lineWidth = 2;
-                ctx.strokeStyle = faceDetected ? "#00ff88" : "#00ff88";
-                ctx.shadowColor = faceDetected ? "#00ff88" : "transparent";
-                ctx.shadowBlur = faceDetected ? 40 : 0;
+                    ctx.lineWidth = 2;
+                    ctx.strokeStyle = faceDetected ? "#00ff88" : "#00ff88";
+                    ctx.shadowColor = faceDetected ? "#00ff88" : "transparent";
+                    ctx.shadowBlur = faceDetected ? 40 : 0;
 
-                ctx.strokeRect(
-                    smoothBoxRef.current.x,
-                    smoothBoxRef.current.y,
-                    smoothBoxRef.current.w,
-                    smoothBoxRef.current.h
-                );
-                // ctx.strokeRect(x, y, w, h);
+                    ctx.strokeRect(
+                        smoothBoxRef.current.x,
+                        smoothBoxRef.current.y,
+                        smoothBoxRef.current.w,
+                        smoothBoxRef.current.h
+                    );
+                    // ctx.strokeRect(x, y, w, h);
                 } else {
-                setFaceDetected(false);
-                lastBoxRef.current = null;
+                    setFaceDetected(false);
+                    lastBoxRef.current = null;
                 }
             });
 
@@ -296,42 +294,12 @@ const FaceCapture = ({
         setCapturedImage(faceImageBase64);
         setCropImage(faceImageBase64);
         setPreviewMode(true);
-        
+
         const screenshot = webcamRef.current.getScreenshot();
         if (!screenshot) return;
 
         setFullImage(screenshot);
     }, [webcamRef, isBackCamera]);
-
-    /* ---------------- CAPTURE ---------------- */
-    const capture = async () => {
-        if (!webcamRef.current) return;
-
-        // Flash animation
-        const flash = document.createElement("div");
-        flash.className = "capture-flash";
-        document.querySelector(".camera-wrapper")?.appendChild(flash);
-
-        setTimeout(() => flash.remove(), 300);
-
-        const screenshot = webcamRef.current.getScreenshot();
-        if (!screenshot) return;
-
-        setFullImage(screenshot);
-
-        const cropped = await cropFace(screenshot);
-        setCapturedImage(cropped);
-        setCropImage(cropped);
-
-        setPreviewMode(true);
-    };
-
-    const handleOk = () => {
-        if (photo && onImageChange) {
-            onImageChange(photo);
-            setModalOpen(false);
-        }
-    };
 
     // -----------------------------
     // LIFECYCLE
@@ -342,6 +310,8 @@ const FaceCapture = ({
 
     const handleCloseModal = () => {
         setModalOpen(false);
+        setFacingMode(FACING_MODE_USER);
+        setIsBackCamera(false);
     };
 
     const handleUserMedia = () => {
@@ -357,57 +327,6 @@ const FaceCapture = ({
         setLoading(false);
     };
 
-    const handleRetake = () => {
-        setPhoto(null);
-        setCameraReady(false);
-    };
-
-    /* ---------------- AUTO ZOOM CROP ---------------- */
-    const cropFace = (base64) => {
-        const img = new Image();
-        img.src = base64;
-
-        return new Promise((resolve) => {
-            img.onload = () => {
-                const canvas = document.createElement("canvas");
-                const ctx = canvas.getContext("2d");
-                const padding = 80;
-
-                const x =
-                    faceBox.xCenter * img.width -
-                    (faceBox.width * img.width) / 2 -
-                    padding;
-                const y =
-                    faceBox.yCenter * img.height -
-                    (faceBox.height * img.height) / 2 -
-                    padding;
-
-                const w = faceBox.width * img.width + padding * 2;
-                const h = faceBox.height * img.height + padding * 2;
-
-                // canvas.width = w;
-                // canvas.height = h;
-                const size = Math.max(w, h);
-                canvas.width = size;
-                canvas.height = size;
-
-                ctx.drawImage(
-                    img,
-                    x,
-                    y,
-                    w,
-                    h,
-                    (size - w) / 2,
-                    (size - h) / 2,
-                    w,
-                    h
-                );
-
-                // ctx.drawImage(img, x, y, w, h, 0, 0, w, h);
-                resolve(canvas.toDataURL("image/jpeg"));
-            };
-        });
-    };
     const convertFormat = (base64, type = "image/jpeg") => {
         return base64.replace(/^data:image\/[^;]+/, `data:${type}`);
     };
@@ -421,6 +340,8 @@ const FaceCapture = ({
         setCameraReady(false)
         setFullImage(null);
         setCropImage(null);
+        setFacingMode(FACING_MODE_USER);
+        setIsBackCamera(false);
         // stopStream();
     };
 
@@ -459,6 +380,8 @@ const FaceCapture = ({
     const confirmImage = () => {
         setModalOpen(false);
         setPreviewMode(false);
+        setFacingMode(FACING_MODE_USER);
+        setIsBackCamera(false);
         onCapture({
             cropImage,
             fullImage
@@ -530,15 +453,15 @@ const FaceCapture = ({
                 <ModalBody
                     className="camera-modal-body"
                     style={{
-                        background: !photo ? "#000" : "#fff",
+                        background: !capturedImage ? "#000" : "#fff",
                     }}
                 >
                     {/* 🔥 CLOSE BUTTON */}
                     <div className="camera-modal-close-btn">
                         <IconCircleXFilled
                             size={40}
-                            color={photo ? "#666666b3" : "#fff"}
-                            onClick={() => setModalOpen(false)}
+                            color={capturedImage ? "#666666b3" : "#fff"}
+                            onClick={handleCloseModal}
                         />
                     </div>
 
@@ -549,41 +472,39 @@ const FaceCapture = ({
                             <CameraLoader msg={isSwitching ? 'Switching' : 'Initializing'} />
                         </div>
                     )}
-                    {cameraError && 
-                    <div className="emirate-loader">
+                    {cameraError &&
+                        <div className="emirate-loader">
                             {" "}
-                    <CameraError error={cameraError} />
-                    </div>
+                            <CameraError error={cameraError} />
+                        </div>
                     }
-                    {!previewMode && !cameraError && !photo && (
+                    {!previewMode && !cameraError && !capturedImage && (
                         <div className="camera-video-container"
                             style={{
                                 height: isCameraLoadig ? "0" : "100dvh",
                             }}
                         >
-                            <Webcam
-                                key={webcamKey}
-                                ref={webcamRef}
-                                audio={false}
-                                screenshotQuality={1}
-                                videoConstraints={{
-                                    facingMode: isBackCamera ? "environment" : "user",
-                                    deviceId: selectedDeviceId
-                                        ? { exact: selectedDeviceId }
-                                        : undefined,
-
-                                    width: { ideal: 1920 },
-                                    height: { ideal: 1080 },
-                                    frameRate: { ideal: 30 },
+                            {isMobile ?
+                                <MobileCamera {...{
+                                    webcamRef,
+                                    facingMode,
+                                    handleUserMedia,
+                                    handleUserMediaError,
+                                    isBackCamera,
+                                    fade
                                 }}
-                                onUserMedia={handleUserMedia}
-                                onUserMediaError={handleUserMediaError}
-                                mirrored={!isBackCamera}
-                                className="camera-video-tag"
-                                style={{
-                                    opacity: fade ? 0 : 1,
+                                />
+                                :
+                                <DesktopCamera {...{
+                                    webcamKey,
+                                    webcamRef,
+                                    isBackCamera,
+                                    selectedDeviceId,
+                                    handleUserMedia,
+                                    handleUserMediaError,
                                 }}
-                            />
+                                />
+                            }
                             <canvas
                                 ref={canvasRef}
                                 className="camera-canvas"

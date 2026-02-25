@@ -338,7 +338,7 @@ const MobileCamera = ({
         setCameraReady(false);
         setCameraError("Unable to access camera.");
         setLoading(false);
-        alert('Unable to access camera.', error?.message);
+        alert(`Unable to access camera. ${error?.message}`);
     };
 
     const convertFormat = (base64, type = "image/jpeg") => {
@@ -618,7 +618,7 @@ const MobileCamera = ({
                             }}
                         >
                             <Webcam
-                                key={webcamKey}
+                                // key={webcamKey}
                                 ref={webcamRef}
                                 audio={false}
                                 // screenshotQuality={1}
@@ -639,7 +639,7 @@ const MobileCamera = ({
                                 className="camera-canvas"
                                 style={{
                                     visibility: showScanner ? "visible" : "hidden",
-                                    transform: !isBackCamera ? "scaleX(-1)" : "",
+                                    // transform: !isBackCamera ? "scaleX(-1)" : "",
                                 }}
                             />
                             {cameraReady && faceDetected && (

@@ -388,6 +388,8 @@ const MobileCamera = ({
         setPreviewMode(false);
         setCapturedImage(null);
         detectAvailableCameras();
+        setFacingMode(FACING_MODE_USER);
+        setIsBackCamera(false);
         clearTimeout(autoTimerRef.current);
         autoTimerRef.current = null;
     };

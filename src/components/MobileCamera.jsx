@@ -630,7 +630,7 @@ const MobileCamera = ({
                                 }}
                                 onUserMedia={handleUserMedia}
                                 onUserMediaError={handleUserMediaError}
-                                // mirrored={!isBackCamera}
+                                mirrored={!isBackCamera}
                                 className="camera-video-tag"
                                 style={{
                                     opacity: fade ? 0 : 1,
@@ -641,7 +641,7 @@ const MobileCamera = ({
                                 className="camera-canvas"
                                 style={{
                                     visibility: showScanner ? "visible" : "hidden",
-                                    // transform: !isBackCamera ? "scaleX(-1)" : "",
+                                    transform: !isBackCamera ? "scaleX(-1)" : "",
                                 }}
                             />
                             {cameraReady && faceDetected && (

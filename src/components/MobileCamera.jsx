@@ -19,7 +19,7 @@ const FACING_MODE_ENVIRONMENT = "environment";
 const videoConstraints = {
     facingMode: FACING_MODE_USER
 };
-const FaceCapture = ({
+const MobileCamera = ({
     image,
     onImageChange,
     enableDownload = true,
@@ -27,7 +27,6 @@ const FaceCapture = ({
     //   modalOpen,
     //   setModalOpen,
     title,
-    isUserCamera = false,
     onCapture,
 }) => {
     const [facingMode, setFacingMode] = useState(FACING_MODE_USER);
@@ -46,7 +45,7 @@ const FaceCapture = ({
     const [videoDevices, setVideoDevices] = useState([]);
     const [selectedDeviceId, setSelectedDeviceId] = useState(null);
     const [webcamKey, setWebcamKey] = useState(0);
-    const [isBackCamera, setIsBackCamera] = useState(!isUserCamera);
+    const [isBackCamera, setIsBackCamera] = useState(false);
     const [fade, setFade] = useState(false);
     const [showScanner, setShowScanner] = useState(false);
     const [isSwitching, setIsSwitching] = useState(false);
@@ -322,6 +321,7 @@ const FaceCapture = ({
     const handleCloseModal = () => {
         setModalOpen(false);
         setFacingMode(FACING_MODE_USER);
+        setIsBackCamera(false);
     };
 
     const handleUserMedia = () => {
@@ -353,6 +353,7 @@ const FaceCapture = ({
         setFullImage(null);
         setCropImage(null);
         setFacingMode(FACING_MODE_USER);
+        setIsBackCamera(false);
         // stopStream();
     };
 
@@ -665,4 +666,4 @@ const FaceCapture = ({
         </>
     );
 };
-export default memo(FaceCapture);
+export default memo(MobileCamera);
